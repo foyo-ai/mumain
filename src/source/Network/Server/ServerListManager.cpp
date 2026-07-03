@@ -276,6 +276,37 @@ bool CServerListManager::IsNonPvP()
     return bool(0x01 & GetNonPVPInfo());
 }
 
+void CServerListManager::ApplyServerMetadata(int iServerId, BYTE byPvpFlag, const wchar_t* szName)
+{
+    for (auto it = m_mapServerGroup.begin(); it != m_mapServerGroup.end(); ++it)
+    {
+        CServerGroup* pGroup = it->second;
+        if (pGroup == nullptr)
+            continue;
+
+        for (auto sit = pGroup->m_listServerInfo.begin(); sit != pGroup->m_listServerInfo.end(); ++sit)
+        {
+            CServerInfo* pInfo = *sit;
+            if (pInfo == nullptr || pInfo->m_iConnectIndex != iServerId)
+                continue;
+
+            // Override the pvp flag (drives the "(Non-PVP)" label and the
+            // Vulcanus move-command gate) with the server-provided value.
+            pInfo->m_byNonPvP = byPvpFlag;
+            pGroup->m_abyNonPvpServer[pInfo->m_iIndex - 1] = byPvpFlag;
+
+            // Override the display name with the one configured on the server.
+            if (szName != nullptr && szName[0] != L'\0')
+            {
+                wcsncpy(pInfo->m_bName, szName, MAX_TEXT_LENGTH - 1);
+                pInfo->m_bName[MAX_TEXT_LENGTH - 1] = L'\0';
+                wcsncpy(pGroup->m_szName, szName, MAX_TEXT_LENGTH - 1);
+                pGroup->m_szName[MAX_TEXT_LENGTH - 1] = L'\0';
+            }
+        }
+    }
+}
+
 void CServerListManager::SetTotalServer(int iTotalServer)
 {
     m_iTotalServer = iTotalServer;

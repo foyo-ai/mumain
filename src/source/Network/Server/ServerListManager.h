@@ -46,6 +46,12 @@ public:
     void SetTotalServer(int iTotalServer);
     int GetTotalServer();
 
+    // Applies server display metadata received from the server (F4/07) onto the
+    // already-built server list: overrides the pvp flag and the display name of
+    // the server whose connect index matches iServerId. Falls back to the local
+    // ServerList.bmd values for any server the server did not send.
+    void ApplyServerMetadata(int iServerId, BYTE byPvpFlag, const wchar_t* szName);
+
 protected:
     const SServerGroupInfo* GetServerGroupInfoInScript(WORD wServerGroupIndex);
     bool MakeServerGroup(IN int iServerGroupIndex, OUT CServerGroup* pServerGroup);

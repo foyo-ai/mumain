@@ -507,6 +507,42 @@ void ReceiveServerList(const BYTE* ReceiveBuffer)
 
     g_ConsoleDebug->Write(MCD_RECEIVE, L"0xF4 [ReceiveServerList]");
 }
+
+// Handles the server display metadata (name / pvp flag / group / subtitle) which
+// the connect server pushes right after the server list (F4/07). Applies it onto
+// the server list built from ServerList.bmd so names and the pvp/Vulcanus gate
+// follow the server configuration instead of the static local file.
+void ReceiveServerMetadata(const BYTE* ReceiveBuffer)
+{
+    // C2 header: C2 lenHi lenLo F4 07 ; ServerCount (big-endian) at offset 5 ;
+    // ServerMetadataInfo[] (96 bytes each) at offset 7.
+    const int count = (ReceiveBuffer[5] << 8) | ReceiveBuffer[6];
+    const int STRUCT_SIZE = 96;
+    for (int i = 0; i < count; i++)
+    {
+        const BYTE* b = ReceiveBuffer + 7 + i * STRUCT_SIZE;
+        const int serverId = b[0] | (b[1] << 8);
+        const BYTE pvpFlag = b[2];
+
+        char utf8Name[33];
+        memcpy(utf8Name, b + 5, 32);
+        utf8Name[32] = '\0';
+        wchar_t name[64] = { 0 };
+        CMultiLanguage::ConvertFromUtf8(name, utf8Name);
+
+        g_ServerListManager->ApplyServerMetadata(serverId, pvpFlag, name);
+
+        wchar_t log[160];
+        mu_swprintf(log, L"ServerMetadata id=%d pvp=%d name='%ls'\r\n", serverId, pvpFlag, name);
+        g_ErrorReport.Write(log);
+    }
+
+    g_ConsoleDebug->Write(MCD_RECEIVE, L"0xF4 [ReceiveServerMetadata(%d)]", count);
+
+    // The server-select window may already be visible from the server list; refresh it.
+    CUIMng::Instance().m_ServerSelWin.UpdateDisplay();
+}
+
 void ReceiveServerConnect(const BYTE* ReceiveBuffer)
 {
     auto Data = (LPPRECEIVE_SERVER_ADDRESS)ReceiveBuffer;
@@ -1513,19 +1549,25 @@ void ReceiveMuHelperStatusUpdate(std::span<const BYTE> ReceiveBuffer)
     {
         MUHelper::g_MuHelper.Stop();
     }
-    else
+    else if (pMuHelperStatus->ConsumeMoney)
     {
-        MUHelper::g_MuHelper.Start();
-
-        if (pMuHelperStatus->Money > 0 && pMuHelperStatus->ConsumeMoney)
+        // Per protocol, a status update with ConsumeMoney set is a zen-charge
+        // notification while the helper is already running -- it must NOT be
+        // treated as a start signal (the helper only starts when ConsumeMoney
+        // is cleared). Account for the charge and inform the player.
+        if (pMuHelperStatus->Money > 0)
         {
-            MUHelper:: g_MuHelper.AddCost(pMuHelperStatus->Money);
+            MUHelper::g_MuHelper.AddCost(pMuHelperStatus->Money);
             int iTotalCost = MUHelper::g_MuHelper.GetTotalCost();
 
             wchar_t Text[100];
             mu_swprintf(Text, I18N::Game::DZenSHaveBeenSpentInImplementingOfficialMUHelper, iTotalCost);
             g_pSystemLogBox->AddText(Text, SEASON3B::TYPE_SYSTEM_MESSAGE);
         }
+    }
+    else
+    {
+        MUHelper::g_MuHelper.Start();
     }
 
     g_ConsoleDebug->Write(MCD_RECEIVE, L"0x51 [ReceiveMuHelperStatusUpdate]");
@@ -13387,6 +13429,9 @@ static void ProcessPacket(const BYTE* ReceiveBuffer, int32_t Size)
         {
         case 0x06:
             ReceiveServerList(ReceiveBuffer);
+            break;
+        case 0x07:
+            ReceiveServerMetadata(ReceiveBuffer);
             break;
         case 0x03:
             ReceiveServerConnect(ReceiveBuffer);
