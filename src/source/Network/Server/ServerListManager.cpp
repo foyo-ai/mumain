@@ -300,8 +300,15 @@ void CServerListManager::ApplyServerMetadata(int iServerId, BYTE byPvpFlag, cons
             {
                 wcsncpy(pInfo->m_bName, szName, MAX_TEXT_LENGTH - 1);
                 pInfo->m_bName[MAX_TEXT_LENGTH - 1] = L'\0';
-                wcsncpy(pGroup->m_szName, szName, MAX_TEXT_LENGTH - 1);
-                pGroup->m_szName[MAX_TEXT_LENGTH - 1] = L'\0';
+
+                // The group button shows the group name; when several servers
+                // share a group, let the first one (index 1) name the group so
+                // it stays stable instead of the last-applied server winning.
+                if (pInfo->m_iIndex == 1)
+                {
+                    wcsncpy(pGroup->m_szName, szName, MAX_TEXT_LENGTH - 1);
+                    pGroup->m_szName[MAX_TEXT_LENGTH - 1] = L'\0';
+                }
             }
         }
     }
