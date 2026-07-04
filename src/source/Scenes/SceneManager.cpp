@@ -630,7 +630,10 @@ static void CheckServerConnection()
 
     // Auto-reconnect only makes sense in-game, where the server restores the
     // character's saved position. Other scenes keep the original behaviour.
-    if (SceneFlag == MAIN_SCENE && ReconnectManager::Instance().HasSession())
+    // A disconnect right after /offstore or /offlevel is intentional - skip
+    // the auto-reconnect so the offline ghost keeps running.
+    if (SceneFlag == MAIN_SCENE && ReconnectManager::Instance().HasSession()
+        && !ReconnectManager::Instance().ConsumeSuppression())
     {
         g_ErrorReport.Write(L"> Connection lost in game - starting auto-reconnect. ");
         g_ErrorReport.WriteCurrentTime();

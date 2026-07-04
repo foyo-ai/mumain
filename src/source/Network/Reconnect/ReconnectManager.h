@@ -48,6 +48,13 @@ public:
     void Update();        // per-frame driver (runs in the scene-update phase)
     void RequestCancel(); // dialog's Cancel button; processed by Update()
 
+    // Offline-session commands (/offstore, /offlevel) make the server disconnect
+    // us on purpose; auto-reconnecting would log back in and stop the offline
+    // ghost. Sniffing the outgoing chat arms a short suppression window, and the
+    // disconnect detector consumes it to skip the auto-reconnect once.
+    void NoteOutgoingChatCommand(const wchar_t* text);
+    bool ConsumeSuppression();
+
     // Read by ReconnectDialog.
     bool IsActive() const { return m_active || m_beginPending; }
     Phase GetPhase() const { return m_phase; }
@@ -84,6 +91,7 @@ private:
     bool m_muHelperWasActive = false; // MU Helper state to restore after reconnect
     Phase m_phase = Phase::Idle;
     double m_phaseStartTime = 0.0;
+    uint64_t m_suppressUntilTick = 0; // GetTickCount64 deadline of the suppression window
 
     // Background probe socket (uintptr_t holds a winsock SOCKET; ~0 = none).
     uintptr_t m_probeSocket = static_cast<uintptr_t>(~0ull);

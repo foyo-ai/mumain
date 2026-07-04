@@ -87,6 +87,36 @@ void ReconnectManager::ClearSession()
     m_characterName[0] = L'\0';
 }
 
+void ReconnectManager::NoteOutgoingChatCommand(const wchar_t* text)
+{
+    if (text == nullptr)
+    {
+        return;
+    }
+
+    // The server answers these with an intentional disconnect; give the
+    // disconnect up to 10 seconds to arrive before behaving normally again.
+    if (wcsncmp(text, L"/offstore", 9) == 0 || wcsncmp(text, L"/offlevel", 9) == 0)
+    {
+        m_suppressUntilTick = GetTickCount64() + 10000;
+    }
+}
+
+bool ReconnectManager::ConsumeSuppression()
+{
+    if (m_suppressUntilTick == 0 || GetTickCount64() > m_suppressUntilTick)
+    {
+        return false;
+    }
+
+    m_suppressUntilTick = 0;
+
+    // The player wants to stay offline; drop the cached session so later
+    // frames don't start a reconnect either.
+    ClearSession();
+    return true;
+}
+
 void ReconnectManager::RequestBegin()
 {
     if (m_active || m_beginPending || !m_hasSession)

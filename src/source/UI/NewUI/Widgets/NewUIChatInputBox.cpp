@@ -5,6 +5,7 @@
 
 #include "Audio/DSPlaySound.h"
 #include "UI/NewUI/HUD/NewUIChatLogWindow.h"
+#include "Network/Reconnect/ReconnectManager.h"
 #include "UI/Legacy/UIControls.h"
 #include "UI/NewUI/NewUISystem.h"
 #include "Engine/Object/ZzzOpenData.h"
@@ -562,6 +563,7 @@ bool SEASON3B::CNewUIChatInputBox::UpdateKeyEvent()
                             UI::Chat::CheckChatText(szChatText);
                         }
 
+                        ReconnectManager::Instance().NoteOutgoingChatCommand(wstrText.c_str());
                         SocketClient->ToGameServer()->SendPublicChatMessage(Hero->ID, wstrText.c_str());
                         AddChatHistory(wstrText);
                     }

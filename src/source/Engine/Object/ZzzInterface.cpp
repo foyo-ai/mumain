@@ -31,6 +31,7 @@
 
 #include "GameLogic/Events/MatchEvent.h"
 #include "GameLogic/Items/PersonalShopTitleImp.h"
+#include "Network/Reconnect/ReconnectManager.h"
 #include "GameLogic/Quests/CSQuest.h"
 #include "GameLogic/Items/CSItemOption.h"
 #include "GameLogic/NPCs/npcBreeder.h"
@@ -3404,6 +3405,7 @@ void SendMacroChat(wchar_t* Text)
         //    SendChat(Text);
         //}
 
+        ReconnectManager::Instance().NoteOutgoingChatCommand(Text);
         SocketClient->ToGameServer()->SendPublicChatMessage(Hero->ID, Text);
 
         LastMacroTime = GetTickCount64();
