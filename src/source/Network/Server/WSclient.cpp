@@ -8631,15 +8631,12 @@ void ReceiveEventZoneOpenTime(const BYTE* ReceiveBuffer)
         }
         else
         {
-            wchar_t Text[256];
-            auto Hour = (int)(time / 60);
-            int Mini = (int)(time)-(Hour * 60);
-
+            // Show the remaining minutes directly, like Blood Castle / Illusion Temple.
+            // The previous code split the time into hours + minutes and always prefixed
+            // "When <hours>", which produced a stray "When 0" for sub-hour waits (Chaos
+            // Castle runs hourly, so the hour part is essentially always 0).
             wchar_t szOpenTime[256] = { 0, };
-
-            mu_swprintf(szOpenTime, I18N::Game::WhenD, Hour);
-            mu_swprintf(Text, I18N::Game::AfterDMinutesYouMayEnterS, Mini, I18N::Game::ChaosCastle);
-            wcscat(szOpenTime, Text);
+            mu_swprintf(szOpenTime, I18N::Game::AfterDMinutesYouMayEnterS, (int)time, I18N::Game::ChaosCastle);
 
             SEASON3B::CNewUICommonMessageBox* pMsgBox = nullptr;
             SEASON3B::CreateMessageBox(MSGBOX_LAYOUT_CLASS(SEASON3B::CChaosCastleTimeCheckMsgBoxLayout), &pMsgBox);
