@@ -7,6 +7,8 @@
 #include "UI/NewUI/NewUISystem.h"
 #include "Engine/Object/ZzzInventory.h"
 #include "Engine/Object/ZzzInterface.h"
+#include "Engine/Object/ZzzCharacter.h"
+#include "Network/Server/WSclient.h"
 #include "Audio/DSPlaySound.h"
 #include "I18N/All.h"
 
@@ -101,10 +103,48 @@ bool CNewUIJewelBank::UpdateMouseEvent()
         return false;
     }
 
+    // Left-click a jewel row to deposit one; right-click to withdraw one.
+    for (size_t i = 0; i < m_Entries.size(); ++i)
+    {
+        const int rowY = m_Pos.y + kFirstRowY + (int)i * kRowHeight;
+        if (!CheckMouseIn(m_Pos.x + kFrameSideWidth, rowY, JEWELBANK_WIDTH - kFrameSideWidth * 2, kRowHeight))
+        {
+            continue;
+        }
+
+        if (SEASON3B::IsPress(VK_LBUTTON))
+        {
+            SendBankCommand(L"deposit", m_Entries[i].Alias, 1);
+            PlayBuffer(SOUND_CLICK01);
+            return false;
+        }
+        if (SEASON3B::IsPress(VK_RBUTTON))
+        {
+            SendBankCommand(L"withdraw", m_Entries[i].Alias, 1);
+            PlayBuffer(SOUND_CLICK01);
+            return false;
+        }
+    }
+
     if (CheckMouseIn(m_Pos.x, m_Pos.y, JEWELBANK_WIDTH, JEWELBANK_HEIGHT))
         return false;
 
     return true;
+}
+
+void CNewUIJewelBank::SendBankCommand(const wchar_t* action, const wchar_t* alias, int amount)
+{
+    if (SocketClient == NULL || Hero == NULL || alias == NULL || alias[0] == L'\0')
+    {
+        return;
+    }
+
+    wchar_t command[64] = { 0, };
+    mu_swprintf(command, L"/bank %ls %ls %d", action, alias, amount);
+    SocketClient->ToGameServer()->SendPublicChatMessage(Hero->ID, command);
+
+    // Refresh the window: only /bankdata emits the balances packet (deposit/withdraw just mutate + reply).
+    SocketClient->ToGameServer()->SendPublicChatMessage(Hero->ID, L"/bankdata");
 }
 
 bool CNewUIJewelBank::UpdateKeyEvent()

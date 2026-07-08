@@ -69,6 +69,9 @@ namespace SEASON3B
         void RenderFrame();
         void RenderBalances();
 
+        // Sends "/bank <action> <alias> <amount>" then a quiet "/bankdata" to refresh the window.
+        void SendBankCommand(const wchar_t* action, const wchar_t* alias, int amount);
+
         CNewUIManager* m_pNewUIMng;
         POINT m_Pos;
         CNewUIButton m_BtnExit;
