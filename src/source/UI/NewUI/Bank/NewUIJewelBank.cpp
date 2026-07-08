@@ -27,12 +27,35 @@ namespace
     // Window labels are kept English/ASCII (the in-game text renderer cannot show diacritics).
     const wchar_t* const kJewelBankTitle = L"Jewel Bank";
     const wchar_t* const kJewelBankEmpty = L"No bankable items configured";
+    const wchar_t* const kJewelBankHint = L"L-click deposit  R-click withdraw";
+
+    // Quick-amount buttons. "All" sends a large count; the server clamps to what is actually available.
+    constexpr int kBankAllAmount = 9999;
+    const int kAmountValues[CNewUIJewelBank::AMOUNT_BUTTON_COUNT] = { 1, 10, 50, kBankAllAmount };
+    const wchar_t* const kAmountLabels[CNewUIJewelBank::AMOUNT_BUTTON_COUNT] = { L"1", L"10", L"50", L"All" };
+
+    constexpr int kAmountBtnW = 34;
+    constexpr int kAmountBtnH = 20;
+    constexpr int kAmountBtnGap = 4;
+    constexpr int kAmountBtnFirstX = 26;
+    constexpr int kAmountBtnY = CNewUIJewelBank::JEWELBANK_HEIGHT - 82;
+    constexpr int kHintY = CNewUIJewelBank::JEWELBANK_HEIGHT - 56;
 }
 
 CNewUIJewelBank::CNewUIJewelBank()
 {
     m_pNewUIMng = NULL;
     m_Pos.x = m_Pos.y = 0;
+    m_AmountIndex = 0;
+}
+
+int CNewUIJewelBank::GetSelectedAmount() const
+{
+    if (m_AmountIndex < 0 || m_AmountIndex >= AMOUNT_BUTTON_COUNT)
+    {
+        return 1;
+    }
+    return kAmountValues[m_AmountIndex];
 }
 
 CNewUIJewelBank::~CNewUIJewelBank()
@@ -103,7 +126,13 @@ bool CNewUIJewelBank::UpdateMouseEvent()
         return false;
     }
 
-    // Left-click a jewel row to deposit one; right-click to withdraw one.
+    if (HandleAmountButtons())
+    {
+        return false;
+    }
+
+    // Left-click a jewel row to deposit the selected amount; right-click to withdraw it.
+    const int amount = GetSelectedAmount();
     for (size_t i = 0; i < m_Entries.size(); ++i)
     {
         const int rowY = m_Pos.y + kFirstRowY + (int)i * kRowHeight;
@@ -114,13 +143,13 @@ bool CNewUIJewelBank::UpdateMouseEvent()
 
         if (SEASON3B::IsPress(VK_LBUTTON))
         {
-            SendBankCommand(L"deposit", m_Entries[i].Alias, 1);
+            SendBankCommand(L"deposit", m_Entries[i].Alias, amount);
             PlayBuffer(SOUND_CLICK01);
             return false;
         }
         if (SEASON3B::IsPress(VK_RBUTTON))
         {
-            SendBankCommand(L"withdraw", m_Entries[i].Alias, 1);
+            SendBankCommand(L"withdraw", m_Entries[i].Alias, amount);
             PlayBuffer(SOUND_CLICK01);
             return false;
         }
@@ -173,12 +202,59 @@ bool CNewUIJewelBank::Render()
 
     RenderFrame();
     RenderBalances();
+    RenderAmountButtons();
 
     m_BtnExit.Render();
 
     DisableAlphaBlend();
 
     return true;
+}
+
+bool CNewUIJewelBank::HandleAmountButtons()
+{
+    if (!SEASON3B::IsPress(VK_LBUTTON))
+    {
+        return false;
+    }
+
+    for (int j = 0; j < AMOUNT_BUTTON_COUNT; ++j)
+    {
+        const int bx = m_Pos.x + kAmountBtnFirstX + j * (kAmountBtnW + kAmountBtnGap);
+        const int by = m_Pos.y + kAmountBtnY;
+        if (CheckMouseIn(bx, by, kAmountBtnW, kAmountBtnH))
+        {
+            m_AmountIndex = j;
+            PlayBuffer(SOUND_CLICK01);
+            return true;
+        }
+    }
+    return false;
+}
+
+void CNewUIJewelBank::RenderAmountButtons()
+{
+    g_pRenderText->SetFont(g_hFont);
+    g_pRenderText->SetBgColor(0, 0, 0, 0);
+
+    for (int j = 0; j < AMOUNT_BUTTON_COUNT; ++j)
+    {
+        const float bx = (float)(m_Pos.x + kAmountBtnFirstX + j * (kAmountBtnW + kAmountBtnGap));
+        const float by = (float)(m_Pos.y + kAmountBtnY);
+
+        if (j == m_AmountIndex)
+        {
+            g_pRenderText->SetTextColor(255, 230, 150, 255);
+        }
+        else
+        {
+            g_pRenderText->SetTextColor(170, 170, 170, 255);
+        }
+        g_pRenderText->RenderText(bx, by + 3.0f, kAmountLabels[j], (float)kAmountBtnW, 0, RT3_SORT_CENTER);
+    }
+
+    g_pRenderText->SetTextColor(140, 140, 140, 255);
+    g_pRenderText->RenderText(m_Pos.x + 12.0f, m_Pos.y + (float)kHintY, kJewelBankHint, JEWELBANK_WIDTH - 24.0f, 0, RT3_SORT_CENTER);
 }
 
 float CNewUIJewelBank::GetLayerDepth()

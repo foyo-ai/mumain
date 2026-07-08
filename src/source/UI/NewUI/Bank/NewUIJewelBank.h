@@ -33,6 +33,7 @@ namespace SEASON3B
             MAX_JEWELBANK_ENTRIES = 16,
             JEWELBANK_WIDTH = 200,
             JEWELBANK_HEIGHT = 320,
+            AMOUNT_BUTTON_COUNT = 4,
         };
 
         // Reuse existing shared UI frame textures (same slots as the gatekeeper/inventory windows).
@@ -68,6 +69,9 @@ namespace SEASON3B
         void LoadImages();
         void RenderFrame();
         void RenderBalances();
+        void RenderAmountButtons();
+        bool HandleAmountButtons();
+        int GetSelectedAmount() const;
 
         // Sends "/bank <action> <alias> <amount>" then a quiet "/bankdata" to refresh the window.
         void SendBankCommand(const wchar_t* action, const wchar_t* alias, int amount);
@@ -76,5 +80,6 @@ namespace SEASON3B
         POINT m_Pos;
         CNewUIButton m_BtnExit;
         std::vector<JewelBankEntry> m_Entries;
+        int m_AmountIndex; // index into the quick-amount buttons (1 / 10 / 50 / All)
     };
 }
