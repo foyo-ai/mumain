@@ -20,42 +20,37 @@ namespace
     constexpr int kFrameSideWidth = 21;
     constexpr int kFrameFooterHeight = 45;
     constexpr int kFirstRowY = 74;
-    constexpr int kRowHeight = 24;
-    constexpr int kTextLeft = 20;
+    constexpr int kRowHeight = 30;
+    constexpr int kIconLeft = 20;
+    constexpr int kIconSize = 24;
+    constexpr int kTextLeft = 48;      // just right of the icon
     constexpr int kMaxItemTypeMultiplier = MAX_ITEM_INDEX; // group * 512 + number
 
     // Window labels are kept English/ASCII (the in-game text renderer cannot show diacritics).
     const wchar_t* const kJewelBankTitle = L"Jewel Bank";
     const wchar_t* const kJewelBankEmpty = L"No bankable items configured";
-    const wchar_t* const kJewelBankHint = L"L-click deposit  R-click withdraw";
+    const wchar_t* const kJewelBankHint  = L"Ctrl + Right-click a bag jewel to deposit";
 
-    // Quick-amount buttons. "All" sends a large count; the server clamps to what is actually available.
+    // Per-row withdraw buttons. "All" (kBankAllAmount) and every value is clamped to the row count.
     constexpr int kBankAllAmount = 9999;
-    const int kAmountValues[CNewUIJewelBank::AMOUNT_BUTTON_COUNT] = { 1, 10, 50, kBankAllAmount };
-    const wchar_t* const kAmountLabels[CNewUIJewelBank::AMOUNT_BUTTON_COUNT] = { L"1", L"10", L"50", L"All" };
+    const int kAmountValues[CNewUIJewelBank::AMOUNT_BUTTON_COUNT] = { 1, 10, 30, kBankAllAmount };
+    const wchar_t* const kAmountLabels[CNewUIJewelBank::AMOUNT_BUTTON_COUNT] = { L"-1", L"-10", L"-30", L"All" };
 
-    constexpr int kAmountBtnW = 34;
-    constexpr int kAmountBtnH = 20;
-    constexpr int kAmountBtnGap = 4;
-    constexpr int kAmountBtnFirstX = 26;
-    constexpr int kAmountBtnY = CNewUIJewelBank::JEWELBANK_HEIGHT - 82;
-    constexpr int kHintY = CNewUIJewelBank::JEWELBANK_HEIGHT - 56;
+    constexpr int kBtnW = 34;
+    constexpr int kBtnH = 20;
+    constexpr int kBtnGap = 4;
+    constexpr int kBtnBlockRight = CNewUIJewelBank::JEWELBANK_WIDTH - 22;
+    constexpr int kBtnBlockLeft = kBtnBlockRight - (CNewUIJewelBank::AMOUNT_BUTTON_COUNT * kBtnW + (CNewUIJewelBank::AMOUNT_BUTTON_COUNT - 1) * kBtnGap);
+    constexpr int kNameWidth = kBtnBlockLeft - kTextLeft - 6;
+    constexpr int kHintY = CNewUIJewelBank::JEWELBANK_HEIGHT - 40;
+
+    int BtnX(int j) { return kBtnBlockLeft + j * (kBtnW + kBtnGap); }
 }
 
 CNewUIJewelBank::CNewUIJewelBank()
 {
     m_pNewUIMng = NULL;
     m_Pos.x = m_Pos.y = 0;
-    m_AmountIndex = 0;
-}
-
-int CNewUIJewelBank::GetSelectedAmount() const
-{
-    if (m_AmountIndex < 0 || m_AmountIndex >= AMOUNT_BUTTON_COUNT)
-    {
-        return 1;
-    }
-    return kAmountValues[m_AmountIndex];
 }
 
 CNewUIJewelBank::~CNewUIJewelBank()
@@ -126,39 +121,54 @@ bool CNewUIJewelBank::UpdateMouseEvent()
         return false;
     }
 
-    if (HandleAmountButtons())
+    if (HandleRowButtons())
     {
         return false;
-    }
-
-    // Left-click a jewel row to deposit the selected amount; right-click to withdraw it.
-    const int amount = GetSelectedAmount();
-    for (size_t i = 0; i < m_Entries.size(); ++i)
-    {
-        const int rowY = m_Pos.y + kFirstRowY + (int)i * kRowHeight;
-        if (!CheckMouseIn(m_Pos.x + kFrameSideWidth, rowY, JEWELBANK_WIDTH - kFrameSideWidth * 2, kRowHeight))
-        {
-            continue;
-        }
-
-        if (SEASON3B::IsPress(VK_LBUTTON))
-        {
-            SendBankCommand(L"deposit", m_Entries[i].Alias, amount);
-            PlayBuffer(SOUND_CLICK01);
-            return false;
-        }
-        if (SEASON3B::IsPress(VK_RBUTTON))
-        {
-            SendBankCommand(L"withdraw", m_Entries[i].Alias, amount);
-            PlayBuffer(SOUND_CLICK01);
-            return false;
-        }
     }
 
     if (CheckMouseIn(m_Pos.x, m_Pos.y, JEWELBANK_WIDTH, JEWELBANK_HEIGHT))
         return false;
 
     return true;
+}
+
+bool CNewUIJewelBank::HandleRowButtons()
+{
+    if (!SEASON3B::IsPress(VK_LBUTTON))
+    {
+        return false;
+    }
+
+    for (size_t i = 0; i < m_Entries.size(); ++i)
+    {
+        const int rowY = m_Pos.y + kFirstRowY + (int)i * kRowHeight;
+        for (int j = 0; j < AMOUNT_BUTTON_COUNT; ++j)
+        {
+            const int bx = m_Pos.x + BtnX(j);
+            if (!CheckMouseIn(bx, rowY, kBtnW, kBtnH))
+            {
+                continue;
+            }
+
+            const DWORD have = m_Entries[i].Count;
+            if (have == 0)
+            {
+                PlayBuffer(SOUND_CLICK01);
+                return true; // nothing to withdraw
+            }
+
+            int amount = kAmountValues[j];
+            if (amount > (int)have) // clamp -1/-10/-30 and All to what is available
+            {
+                amount = (int)have;
+            }
+
+            SendBankCommand(L"withdraw", m_Entries[i].Alias, amount);
+            PlayBuffer(SOUND_CLICK01);
+            return true;
+        }
+    }
+    return false;
 }
 
 bool CNewUIJewelBank::TryDepositAllOfItem(int group, int number)
@@ -214,60 +224,18 @@ bool CNewUIJewelBank::Render()
     glColor4f(1.f, 1.f, 1.f, 1.f);
 
     RenderFrame();
-    RenderBalances();
-    RenderAmountButtons();
+    RenderRows();
+
+    g_pRenderText->SetFont(g_hFont);
+    g_pRenderText->SetTextColor(200, 130, 60, 255);
+    g_pRenderText->SetBgColor(0, 0, 0, 0);
+    g_pRenderText->RenderText(m_Pos.x + 12.0f, m_Pos.y + (float)kHintY, kJewelBankHint, JEWELBANK_WIDTH - 24.0f, 0, RT3_SORT_CENTER);
 
     m_BtnExit.Render();
 
     DisableAlphaBlend();
 
     return true;
-}
-
-bool CNewUIJewelBank::HandleAmountButtons()
-{
-    if (!SEASON3B::IsPress(VK_LBUTTON))
-    {
-        return false;
-    }
-
-    for (int j = 0; j < AMOUNT_BUTTON_COUNT; ++j)
-    {
-        const int bx = m_Pos.x + kAmountBtnFirstX + j * (kAmountBtnW + kAmountBtnGap);
-        const int by = m_Pos.y + kAmountBtnY;
-        if (CheckMouseIn(bx, by, kAmountBtnW, kAmountBtnH))
-        {
-            m_AmountIndex = j;
-            PlayBuffer(SOUND_CLICK01);
-            return true;
-        }
-    }
-    return false;
-}
-
-void CNewUIJewelBank::RenderAmountButtons()
-{
-    g_pRenderText->SetFont(g_hFont);
-    g_pRenderText->SetBgColor(0, 0, 0, 0);
-
-    for (int j = 0; j < AMOUNT_BUTTON_COUNT; ++j)
-    {
-        const float bx = (float)(m_Pos.x + kAmountBtnFirstX + j * (kAmountBtnW + kAmountBtnGap));
-        const float by = (float)(m_Pos.y + kAmountBtnY);
-
-        if (j == m_AmountIndex)
-        {
-            g_pRenderText->SetTextColor(255, 230, 150, 255);
-        }
-        else
-        {
-            g_pRenderText->SetTextColor(170, 170, 170, 255);
-        }
-        g_pRenderText->RenderText(bx, by + 3.0f, kAmountLabels[j], (float)kAmountBtnW, 0, RT3_SORT_CENTER);
-    }
-
-    g_pRenderText->SetTextColor(140, 140, 140, 255);
-    g_pRenderText->RenderText(m_Pos.x + 12.0f, m_Pos.y + (float)kHintY, kJewelBankHint, JEWELBANK_WIDTH - 24.0f, 0, RT3_SORT_CENTER);
 }
 
 float CNewUIJewelBank::GetLayerDepth()
@@ -292,7 +260,7 @@ void CNewUIJewelBank::RenderFrame()
     g_pRenderText->RenderText(m_Pos.x + 15.0f, m_Pos.y + 22.0f, szText, JEWELBANK_WIDTH - 30.0f, 0, RT3_SORT_CENTER);
 }
 
-void CNewUIJewelBank::RenderBalances()
+void CNewUIJewelBank::RenderRows()
 {
     g_pRenderText->SetFont(g_hFont);
     g_pRenderText->SetBgColor(0, 0, 0, 0);
@@ -310,15 +278,27 @@ void CNewUIJewelBank::RenderBalances()
     {
         const JewelBankEntry& entry = m_Entries[i];
         const int itemType = entry.Group * kMaxItemTypeMultiplier + entry.Number;
-        GetItemName(itemType, 0, szName);
-
         const float rowY = m_Pos.y + (float)(kFirstRowY + (int)i * kRowHeight);
 
-        g_pRenderText->SetTextColor(230, 230, 230, 255);
-        g_pRenderText->RenderText(m_Pos.x + (float)kTextLeft, rowY, szName, 120.0f, 0, RT3_SORT_LEFT);
+        // Jewel icon
+        RenderItem3D((float)(m_Pos.x + kIconLeft), rowY - 2.0f, (float)kIconSize, (float)kIconSize, itemType, 0, 0, 0, false);
 
-        mu_swprintf(szCount, L"%u", entry.Count);
+        // Name (line 1) + count (line 2)
+        GetItemName(itemType, 0, szName);
+        g_pRenderText->SetFont(g_hFont);
+        g_pRenderText->SetTextColor(230, 230, 230, 255);
+        g_pRenderText->RenderText(m_Pos.x + (float)kTextLeft, rowY, szName, (float)kNameWidth, 0, RT3_SORT_LEFT);
+
+        mu_swprintf(szCount, L"x%u", entry.Count);
         g_pRenderText->SetTextColor(150, 220, 255, 255);
-        g_pRenderText->RenderText(m_Pos.x + (float)kTextLeft, rowY, szCount, (float)(JEWELBANK_WIDTH - kTextLeft * 2), 0, RT3_SORT_RIGHT);
+        g_pRenderText->RenderText(m_Pos.x + (float)kTextLeft, rowY + 13.0f, szCount, (float)kNameWidth, 0, RT3_SORT_LEFT);
+
+        // Withdraw buttons
+        for (int j = 0; j < AMOUNT_BUTTON_COUNT; ++j)
+        {
+            const bool dim = (entry.Count == 0);
+            g_pRenderText->SetTextColor(dim ? 110 : 255, dim ? 110 : 210, dim ? 110 : 120, 255);
+            g_pRenderText->RenderText((float)(m_Pos.x + BtnX(j)), rowY + 4.0f, kAmountLabels[j], (float)kBtnW, 0, RT3_SORT_CENTER);
+        }
     }
 }

@@ -31,9 +31,9 @@ namespace SEASON3B
         enum
         {
             MAX_JEWELBANK_ENTRIES = 16,
-            JEWELBANK_WIDTH = 200,
+            JEWELBANK_WIDTH = 300,
             JEWELBANK_HEIGHT = 320,
-            AMOUNT_BUTTON_COUNT = 4,
+            AMOUNT_BUTTON_COUNT = 4, // -1 / -10 / -30 / All
         };
 
         // Reuse existing shared UI frame textures (same slots as the gatekeeper/inventory windows).
@@ -62,6 +62,13 @@ namespace SEASON3B
         // inventory (Ctrl+right-click shortcut). Returns true if it was a bankable jewel and handled.
         bool TryDepositAllOfItem(int group, int number);
 
+        // Read access to the configured currency list (used by the shop currency selector strip).
+        int GetEntryCount() const { return (int)m_Entries.size(); }
+        const JewelBankEntry* GetEntry(int i) const
+        {
+            return (i >= 0 && i < (int)m_Entries.size()) ? &m_Entries[i] : nullptr;
+        }
+
         bool UpdateMouseEvent() override;
         bool UpdateKeyEvent() override;
         bool Update() override;
@@ -72,10 +79,8 @@ namespace SEASON3B
     private:
         void LoadImages();
         void RenderFrame();
-        void RenderBalances();
-        void RenderAmountButtons();
-        bool HandleAmountButtons();
-        int GetSelectedAmount() const;
+        void RenderRows();          // icon + name + count + per-row withdraw buttons
+        bool HandleRowButtons();    // per-row -1/-10/-30/All withdraw click
 
         // Sends "/bank <action> <alias> <amount>" then a quiet "/bankdata" to refresh the window.
         void SendBankCommand(const wchar_t* action, const wchar_t* alias, int amount);
@@ -84,6 +89,5 @@ namespace SEASON3B
         POINT m_Pos;
         CNewUIButton m_BtnExit;
         std::vector<JewelBankEntry> m_Entries;
-        int m_AmountIndex; // index into the quick-amount buttons (1 / 10 / 50 / All)
     };
 }
