@@ -9363,6 +9363,27 @@ void ReceiveItemBankBalances(std::span<const BYTE> ReceiveBuffer)
     g_ConsoleDebug->Write(MCD_RECEIVE, L"0xD5 [ReceiveItemBankBalances] count=%d", (int)Header->ItemCount);
 }
 
+SHOP_CURRENCY_INFO g_ShopCurrency = { 0, 0, true, false };
+
+// Personal store's current currency (server->client, code 0xD6). Group 0xFF / Number 0xFFFF = Zen.
+void ReceiveShopCurrency(std::span<const BYTE> ReceiveBuffer)
+{
+    if (ReceiveBuffer.size() < 7) // 4-byte C1 header + Group(1) + Number(2)
+    {
+        return;
+    }
+
+    const BYTE group = ReceiveBuffer[4];
+    const WORD number = (WORD)(ReceiveBuffer[5] | (ReceiveBuffer[6] << 8));
+
+    g_ShopCurrency.Group = group;
+    g_ShopCurrency.Number = number;
+    g_ShopCurrency.IsZen = (group == 0xFF);
+    g_ShopCurrency.Valid = true;
+
+    g_ConsoleDebug->Write(MCD_RECEIVE, L"0xD6 [ReceiveShopCurrency] group=%d number=%d zen=%d", (int)group, (int)number, (int)g_ShopCurrency.IsZen);
+}
+
 void ReceivePurchaseItem(std::span<const BYTE> ReceiveBuffer)
 {
     auto Header = safe_cast<PURCHASEITEM_RESULTINFO>(ReceiveBuffer);
@@ -13474,6 +13495,9 @@ static void ProcessPacket(const BYTE* ReceiveBuffer, int32_t Size)
     }
     case 0xD5:
         ReceiveItemBankBalances(received_span);
+        break;
+    case 0xD6:
+        ReceiveShopCurrency(received_span);
         break;
     case 0xF4:
     {

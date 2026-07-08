@@ -1743,6 +1743,18 @@ typedef struct tagITEMBANK_BALANCES_HEADER {
 } ITEMBANK_BALANCES_HEADERINFO, * LPITEMBANK_BALANCES_HEADERINFO;
 #pragma pack(pop)
 
+// Current personal-store currency pushed by the server (packet C1, HeadCode 0xD6).
+// Wire layout: [0]=0xC1 [1]=size [2]=0xD6 [3]=subcode(0) [4]=ItemGroup [5..6]=ItemNumber(LE).
+// Group 0xFF / Number 0xFFFF means Zen. Cached here for the shop currency selector.
+struct SHOP_CURRENCY_INFO
+{
+    BYTE  Group;
+    WORD  Number;
+    bool  IsZen;
+    bool  Valid;  // false until the first ShopCurrency packet arrives this session
+};
+extern SHOP_CURRENCY_INFO g_ShopCurrency;
+
 typedef struct tagCLOSEPSHOP_RESULT {
     PWMSG_HEADER    Header;
     BYTE			bySubcode;
