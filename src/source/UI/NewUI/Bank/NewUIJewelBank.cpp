@@ -21,9 +21,7 @@ namespace
     constexpr int kFrameFooterHeight = 45;
     constexpr int kFirstRowY = 74;
     constexpr int kRowHeight = 30;
-    constexpr int kIconLeft = 20;
-    constexpr int kIconSize = 24;
-    constexpr int kTextLeft = 48;      // just right of the icon
+    constexpr int kTextLeft = 22;      // name/count column
     constexpr int kMaxItemTypeMultiplier = MAX_ITEM_INDEX; // group * 512 + number
 
     // Window labels are kept English/ASCII (the in-game text renderer cannot show diacritics).
@@ -279,9 +277,6 @@ void CNewUIJewelBank::RenderRows()
         const JewelBankEntry& entry = m_Entries[i];
         const int itemType = entry.Group * kMaxItemTypeMultiplier + entry.Number;
         const float rowY = m_Pos.y + (float)(kFirstRowY + (int)i * kRowHeight);
-
-        // Jewel icon
-        RenderItem3D((float)(m_Pos.x + kIconLeft), rowY - 2.0f, (float)kIconSize, (float)kIconSize, itemType, 0, 0, 0, false);
 
         // Name (line 1) + count (line 2)
         GetItemName(itemType, 0, szName);

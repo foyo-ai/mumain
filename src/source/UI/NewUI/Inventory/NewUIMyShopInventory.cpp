@@ -613,6 +613,9 @@ void SEASON3B::CNewUIMyShopInventory::RequestCurrentCurrency()
     {
         return;
     }
+    // /bankdata populates the configured jewel list the strip lists (in case the bank window
+    // was never opened this session); /shopcurdata gives the currently-selected currency.
+    SocketClient->ToGameServer()->SendPublicChatMessage(Hero->ID, L"/bankdata");
     SocketClient->ToGameServer()->SendPublicChatMessage(Hero->ID, L"/shopcurdata");
 }
 
@@ -628,26 +631,28 @@ void SEASON3B::CNewUIMyShopInventory::RenderCurrencyStrip()
     {
         const int ix = m_Pos.x + CurSlotX(k);
         const int iy = m_Pos.y + kCurStripY;
+        const bool sel = IsSlotSelected(k);
 
-        if (IsSlotSelected(k))
-        {
-            glColor4f(0.30f, 0.70f, 0.28f, enabled ? 1.0f : 0.5f);
-            RenderColor((float)ix - 2.0f, (float)iy - 2.0f, (float)kCurSlotW + 4.0f, (float)kCurSlotH + 4.0f, 0.f, 0);
-            glColor4f(1.f, 1.f, 1.f, 1.f);
-        }
+        // Selection is shown by a bright-green label (a filled box would need RenderColor, which
+        // disables texturing and would blank out the label after it).
+        DWORD color;
+        if (!enabled)     color = RGBA(120, 120, 120, 255);
+        else if (sel)     color = RGBA(120, 255, 120, 255);   // selected currency
+        else if (k == 0)  color = RGBA(255, 220, 130, 255);   // Zen
+        else              color = RGBA(210, 200, 170, 255);   // jewel
+
+        const DWORD bg = sel ? RGBA(25, 70, 25, 200) : 0x00000000;
 
         if (k == 0)
         {
-            RenderText(L"Zen", ix, iy + 8, kCurSlotW, 0,
-                enabled ? RGBA(255, 220, 130, 255) : RGBA(120, 120, 120, 255), 0x00000000, RT3_SORT_CENTER);
+            RenderText(L"Zen", ix, iy + 8, kCurSlotW, 0, color, bg, RT3_SORT_CENTER);
         }
         else if (g_pJewelBank)
         {
             const CNewUIJewelBank::JewelBankEntry* e = g_pJewelBank->GetEntry(k - 1);
             if (e)
             {
-                const int itemType = e->Group * MAX_ITEM_INDEX + e->Number;
-                RenderItem3D((float)ix + 3.0f, (float)iy, (float)(kCurSlotW - 6), (float)kCurSlotH, itemType, 0, 0, 0, false);
+                RenderText(e->Alias, ix, iy + 8, kCurSlotW, 0, color, bg, RT3_SORT_CENTER);
             }
         }
     }
