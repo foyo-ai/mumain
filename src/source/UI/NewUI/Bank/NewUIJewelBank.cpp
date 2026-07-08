@@ -161,6 +161,19 @@ bool CNewUIJewelBank::UpdateMouseEvent()
     return true;
 }
 
+bool CNewUIJewelBank::TryDepositAllOfItem(int group, int number)
+{
+    for (size_t i = 0; i < m_Entries.size(); ++i)
+    {
+        if (m_Entries[i].Group == group && m_Entries[i].Number == number)
+        {
+            SendBankCommand(L"deposit", m_Entries[i].Alias, kBankAllAmount);
+            return true;
+        }
+    }
+    return false;
+}
+
 void CNewUIJewelBank::SendBankCommand(const wchar_t* action, const wchar_t* alias, int amount)
 {
     if (SocketClient == NULL || Hero == NULL || alias == NULL || alias[0] == L'\0')

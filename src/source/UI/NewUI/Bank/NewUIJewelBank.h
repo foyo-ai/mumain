@@ -58,6 +58,10 @@ namespace SEASON3B
         // Replaces the shown balances (called by the network handler for packet 0xD5).
         void SetBalances(const std::vector<JewelBankEntry>& entries);
 
+        // If (group, number) matches a configured bankable jewel, deposits all of that jewel from the
+        // inventory (Ctrl+right-click shortcut). Returns true if it was a bankable jewel and handled.
+        bool TryDepositAllOfItem(int group, int number);
+
         bool UpdateMouseEvent() override;
         bool UpdateKeyEvent() override;
         bool Update() override;

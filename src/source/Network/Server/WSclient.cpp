@@ -2233,6 +2233,13 @@ BOOL ReceiveTeleport(const BYTE* ReceiveBuffer, BOOL bEncrypted)
 
         SocketClient->ToGameServer()->SendClientReadyAfterMapChange();
 
+        // Fetch the item bank balances (quiet) so the jewel bank window and the Ctrl+right-click
+        // bulk-deposit shortcut have the configured jewels/aliases without opening the bank first.
+        if (Hero != nullptr)
+        {
+            SocketClient->ToGameServer()->SendPublicChatMessage(Hero->ID, L"/bankdata");
+        }
+
         g_dwLatestZoneMoving = GetTickCount();
         g_bWhileMovingZone = FALSE;
 
