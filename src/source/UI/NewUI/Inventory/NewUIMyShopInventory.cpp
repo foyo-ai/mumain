@@ -6,7 +6,10 @@
 #include "Audio/DSPlaySound.h"
 #include "UI/NewUI/NewUISystem.h"
 #include "UI/NewUI/Dialogs/NewUICustomMessageBox.h"
+#include "UI/NewUI/Bank/NewUIJewelBank.h"
 #include "GameLogic/Items/PersonalShopTitleImp.h"
+#include "Engine/Object/ZzzInventory.h"
+#include "Network/Server/WSclient.h"
 #include "I18N/All.h"
 
 const int iMAX_SHOPTITLE_MULTI = 26;
@@ -27,6 +30,16 @@ namespace
         g_pRenderText->SetTextColor(backuptextcolor);
         g_pRenderText->SetBgColor(backuptextbackcolor);
     }
+
+    // "Sell in" currency strip, placed under the store-name edit box (the item grid and the
+    // warning text below are shifted down by kGridShift to make room).
+    constexpr int kGridShift = 34;
+    constexpr int kCurStripY = 96;   // slot top
+    constexpr int kCurSlotW = 30;
+    constexpr int kCurSlotH = 26;
+    constexpr int kCurSlotGap = 3;
+    constexpr int kCurStripLeft = 16;
+    int CurSlotX(int k) { return kCurStripLeft + k * (kCurSlotW + kCurSlotGap); }
 };
 
 using namespace SEASON3B;
@@ -39,6 +52,7 @@ SEASON3B::CNewUIMyShopInventory::CNewUIMyShopInventory() : m_SourceIndex(-1), m_
     m_EditBox = NULL;
     m_Button = NULL;
     m_bIsEnableInputValueTextBox = false;
+    m_bRequestedCurrency = false;
 }
 
 SEASON3B::CNewUIMyShopInventory::~CNewUIMyShopInventory()
@@ -59,7 +73,7 @@ bool SEASON3B::CNewUIMyShopInventory::Create(CNewUIManager* pNewUIMng, int x, in
     LoadImages();
 
     m_pNewInventoryCtrl = new CNewUIInventoryCtrl;
-    if (false == m_pNewInventoryCtrl->Create(STORAGE_TYPE::MYSHOP, g_pNewUI3DRenderMng, g_pNewItemMng, this, m_Pos.x + 16, m_Pos.y + 90, 8, 4, MAX_MY_INVENTORY_EX_INDEX))
+    if (false == m_pNewInventoryCtrl->Create(STORAGE_TYPE::MYSHOP, g_pNewUI3DRenderMng, g_pNewItemMng, this, m_Pos.x + 16, m_Pos.y + 90 + kGridShift, 8, 4, MAX_MY_INVENTORY_EX_INDEX))
     {
         SAFE_DELETE(m_pNewInventoryCtrl);
         return false;
@@ -145,7 +159,7 @@ void SEASON3B::CNewUIMyShopInventory::SetPos(int x, int y)
 
     if (m_pNewInventoryCtrl)
     {
-        m_pNewInventoryCtrl->SetPos(m_Pos.x + 16, m_Pos.y + 90);
+        m_pNewInventoryCtrl->SetPos(m_Pos.x + 16, m_Pos.y + 90 + kGridShift);
     }
     if (m_Button)
     {
@@ -385,6 +399,11 @@ bool SEASON3B::CNewUIMyShopInventory::UpdateMouseEvent()
         return false;
     }
 
+    if (HandleCurrencyStrip())
+    {
+        return false;
+    }
+
     if (CheckMouseIn(m_Pos.x, m_Pos.y, INVENTORY_WIDTH, INVENTORY_HEIGHT))
     {
         if (MyShopInventoryProcess() == true)
@@ -487,6 +506,19 @@ bool SEASON3B::CNewUIMyShopInventory::UpdateMouseEvent()
 
 bool SEASON3B::CNewUIMyShopInventory::Update()
 {
+    if (g_pNewUISystem->IsVisible(SEASON3B::INTERFACE_MYSHOP_INVENTORY))
+    {
+        if (!m_bRequestedCurrency)
+        {
+            RequestCurrentCurrency(); // pull the current store currency once per open
+            m_bRequestedCurrency = true;
+        }
+    }
+    else
+    {
+        m_bRequestedCurrency = false; // re-request next time it opens
+    }
+
     if (m_pNewInventoryCtrl && false == m_pNewInventoryCtrl->Update())
     {
         return false;
@@ -515,40 +547,156 @@ void SEASON3B::CNewUIMyShopInventory::RenderTextInfo()
 
     if (m_EnablePersonalShop)
     {
-        RenderText(I18N::Game::StillOpening, m_Pos.x, m_Pos.y + 200, INVENTORY_WIDTH, 0, RGBA(215, 138, 0, 255), 0x00000000, RT3_SORT_CENTER, g_hFontBold);
+        RenderText(I18N::Game::StillOpening, m_Pos.x, m_Pos.y + 200 + kGridShift, INVENTORY_WIDTH, 0, RGBA(215, 138, 0, 255), 0x00000000, RT3_SORT_CENTER, g_hFontBold);
     }
 
     memset(&Text, 0, sizeof(wchar_t) * 100);
     mu_swprintf(Text, I18N::Game::Warning);
-    RenderText(Text, m_Pos.x + 30, m_Pos.y + 230, 0, 0, RGBA(255, 45, 47, 255), 0x00000000, RT3_SORT_LEFT, g_hFontBold);
+    RenderText(Text, m_Pos.x + 30, m_Pos.y + 230 + kGridShift, 0, 0, RGBA(255, 45, 47, 255), 0x00000000, RT3_SORT_LEFT, g_hFontBold);
 
     memset(&Text, 0, sizeof(wchar_t) * 100);
     mu_swprintf(Text, I18N::Game::SellingPriceWhenOpeningTheStore);
-    RenderText(Text, m_Pos.x + 30, m_Pos.y + 250, 0, 0, RGBA(247, 206, 77, 255), 0x00000000, RT3_SORT_LEFT);
+    RenderText(Text, m_Pos.x + 30, m_Pos.y + 250 + kGridShift, 0, 0, RGBA(247, 206, 77, 255), 0x00000000, RT3_SORT_LEFT);
 
     memset(&Text, 0, sizeof(wchar_t) * 100);
     mu_swprintf(Text, I18N::Game::PleaseVerify);
-    RenderText(Text, m_Pos.x + 30, m_Pos.y + 262, 0, 0, RGBA(247, 206, 77, 255), 0x00000000, RT3_SORT_LEFT);
+    RenderText(Text, m_Pos.x + 30, m_Pos.y + 262 + kGridShift, 0, 0, RGBA(247, 206, 77, 255), 0x00000000, RT3_SORT_LEFT);
 
     memset(&Text, 0, sizeof(wchar_t) * 100);
     mu_swprintf(Text, I18N::Game::AlreadyInThePersonalStore);
-    RenderText(Text, m_Pos.x + 30, m_Pos.y + 274, 0, 0, RGBA(247, 206, 77, 255), 0x00000000, RT3_SORT_LEFT);
+    RenderText(Text, m_Pos.x + 30, m_Pos.y + 274 + kGridShift, 0, 0, RGBA(247, 206, 77, 255), 0x00000000, RT3_SORT_LEFT);
 
     memset(&Text, 0, sizeof(wchar_t) * 100);
     mu_swprintf(Text, I18N::Game::CancelSoldItem);
-    RenderText(Text, m_Pos.x + 30, m_Pos.y + 286, 0, 0, RGBA(247, 206, 77, 255), 0x00000000, RT3_SORT_LEFT);
+    RenderText(Text, m_Pos.x + 30, m_Pos.y + 286 + kGridShift, 0, 0, RGBA(247, 206, 77, 255), 0x00000000, RT3_SORT_LEFT);
 
     memset(&Text, 0, sizeof(wchar_t) * 100);
     mu_swprintf(Text, I18N::Game::CanTBeReturned);
-    RenderText(Text, m_Pos.x + 30, m_Pos.y + 298, 0, 0, RGBA(247, 206, 77, 255), 0x00000000, RT3_SORT_LEFT);
+    RenderText(Text, m_Pos.x + 30, m_Pos.y + 298 + kGridShift, 0, 0, RGBA(247, 206, 77, 255), 0x00000000, RT3_SORT_LEFT);
 
     memset(&Text, 0, sizeof(wchar_t) * 100);
     mu_swprintf(Text, I18N::Game::AllItemTrading);
-    RenderText(Text, m_Pos.x + 30, m_Pos.y + 320, 0, 0, RGBA(255, 45, 47, 255), 0x00000000, RT3_SORT_LEFT, g_hFontBold);
+    RenderText(Text, m_Pos.x + 30, m_Pos.y + 320 + kGridShift, 0, 0, RGBA(255, 45, 47, 255), 0x00000000, RT3_SORT_LEFT, g_hFontBold);
 
     memset(&Text, 0, sizeof(wchar_t) * 100);
     mu_swprintf(Text, I18N::Game::CanOnlyBeDoneUsingZen);
-    RenderText(Text, m_Pos.x + 30, m_Pos.y + 332, 0, 0, RGBA(255, 45, 47, 255), 0x00000000, RT3_SORT_LEFT, g_hFontBold);
+    RenderText(Text, m_Pos.x + 30, m_Pos.y + 332 + kGridShift, 0, 0, RGBA(255, 45, 47, 255), 0x00000000, RT3_SORT_LEFT, g_hFontBold);
+}
+
+int SEASON3B::CNewUIMyShopInventory::CurrencySlotCount() const
+{
+    const int jewels = g_pJewelBank ? g_pJewelBank->GetEntryCount() : 0;
+    return 1 + jewels; // slot 0 = Zen
+}
+
+bool SEASON3B::CNewUIMyShopInventory::IsSlotSelected(int k) const
+{
+    if (!g_ShopCurrency.Valid)
+    {
+        return k == 0; // default: highlight Zen until the server tells us
+    }
+    if (k == 0)
+    {
+        return g_ShopCurrency.IsZen;
+    }
+    if (g_ShopCurrency.IsZen || !g_pJewelBank)
+    {
+        return false;
+    }
+    const CNewUIJewelBank::JewelBankEntry* e = g_pJewelBank->GetEntry(k - 1);
+    return e && e->Group == g_ShopCurrency.Group && e->Number == g_ShopCurrency.Number;
+}
+
+void SEASON3B::CNewUIMyShopInventory::RequestCurrentCurrency()
+{
+    if (SocketClient == NULL || Hero == NULL)
+    {
+        return;
+    }
+    SocketClient->ToGameServer()->SendPublicChatMessage(Hero->ID, L"/shopcurdata");
+}
+
+void SEASON3B::CNewUIMyShopInventory::RenderCurrencyStrip()
+{
+    const bool enabled = (m_EnablePersonalShop == false); // only changeable while the store is closed
+
+    RenderText(L"Sell in", m_Pos.x + kCurStripLeft, m_Pos.y + kCurStripY - 13, 0, 0,
+        RGBA(150, 140, 90, 255), 0x00000000, RT3_SORT_LEFT);
+
+    const int slots = CurrencySlotCount();
+    for (int k = 0; k < slots; ++k)
+    {
+        const int ix = m_Pos.x + CurSlotX(k);
+        const int iy = m_Pos.y + kCurStripY;
+
+        if (IsSlotSelected(k))
+        {
+            glColor4f(0.30f, 0.70f, 0.28f, enabled ? 1.0f : 0.5f);
+            RenderColor((float)ix - 2.0f, (float)iy - 2.0f, (float)kCurSlotW + 4.0f, (float)kCurSlotH + 4.0f, 0.f, 0);
+            glColor4f(1.f, 1.f, 1.f, 1.f);
+        }
+
+        if (k == 0)
+        {
+            RenderText(L"Zen", ix, iy + 8, kCurSlotW, 0,
+                enabled ? RGBA(255, 220, 130, 255) : RGBA(120, 120, 120, 255), 0x00000000, RT3_SORT_CENTER);
+        }
+        else if (g_pJewelBank)
+        {
+            const CNewUIJewelBank::JewelBankEntry* e = g_pJewelBank->GetEntry(k - 1);
+            if (e)
+            {
+                const int itemType = e->Group * MAX_ITEM_INDEX + e->Number;
+                RenderItem3D((float)ix + 3.0f, (float)iy, (float)(kCurSlotW - 6), (float)kCurSlotH, itemType, 0, 0, 0, false);
+            }
+        }
+    }
+}
+
+bool SEASON3B::CNewUIMyShopInventory::HandleCurrencyStrip()
+{
+    if (!SEASON3B::IsPress(VK_LBUTTON) || m_EnablePersonalShop)
+    {
+        return false; // ignore while the store is open (server rejects changes anyway)
+    }
+
+    const int slots = CurrencySlotCount();
+    for (int k = 0; k < slots; ++k)
+    {
+        const int ix = m_Pos.x + CurSlotX(k);
+        const int iy = m_Pos.y + kCurStripY;
+        if (!CheckMouseIn(ix, iy, kCurSlotW, kCurSlotH))
+        {
+            continue;
+        }
+
+        wchar_t cmd[64] = { 0, };
+        if (k == 0)
+        {
+            mu_swprintf(cmd, L"/shopcurrency zen");
+        }
+        else if (g_pJewelBank)
+        {
+            const CNewUIJewelBank::JewelBankEntry* e = g_pJewelBank->GetEntry(k - 1);
+            if (!e || e->Alias[0] == L'\0')
+            {
+                return true;
+            }
+            mu_swprintf(cmd, L"/shopcurrency %ls", e->Alias);
+        }
+        else
+        {
+            return true;
+        }
+
+        if (SocketClient && Hero)
+        {
+            SocketClient->ToGameServer()->SendPublicChatMessage(Hero->ID, cmd);
+        }
+        PlayBuffer(SOUND_CLICK01);
+        return true; // server replies with ShopCurrency -> highlight updates
+    }
+    return false;
 }
 
 bool SEASON3B::CNewUIMyShopInventory::Render()
@@ -559,6 +707,8 @@ bool SEASON3B::CNewUIMyShopInventory::Render()
     RenderFrame();
 
     RenderTextInfo();
+
+    RenderCurrencyStrip();
 
     if (m_EditBox)
     {

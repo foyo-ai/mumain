@@ -109,6 +109,14 @@ namespace SEASON3B
         void RenderTextInfo();
 
     private:
+        // Shop currency selector strip (slot 0 = Zen, slots 1..N = configured jewels).
+        void RenderCurrencyStrip();
+        bool HandleCurrencyStrip();      // returns true if a slot was clicked
+        void RequestCurrentCurrency();   // sends the quiet /shopcurdata pull
+        bool IsSlotSelected(int k) const;
+        int  CurrencySlotCount() const;
+
+    private:
         int					m_TargetIndex;
         int					m_SourceIndex;
         bool				m_EnablePersonalShop;
@@ -116,6 +124,7 @@ namespace SEASON3B
 
         CNewUIButton* m_Button;
         CUITextInputBox* m_EditBox;
+        bool m_bRequestedCurrency;   // sent /shopcurdata once per window-open
     };
 
     inline
