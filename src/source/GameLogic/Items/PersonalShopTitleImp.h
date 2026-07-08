@@ -200,10 +200,20 @@ inline void DrawPersonalShopTitleImp()
     CPersonalShopTitleImp::GetObjPtr()->Draw();
 }
 
+//. Currency of a personal-shop item when it is priced in a bankable jewel instead of Zen.
+//. Type packs the item group in the highest 4 bits and the number in the remaining 12
+//. (mirrors the server's PriceItemType); Amount is the required count of that jewel.
+struct PersonalItemJewelPrice
+{
+    WORD Type;
+    WORD Amount;
+};
+
 //. CPersonalItemPriceTable
 class CPersonalItemPriceTable
 {
     std::map<int, int>	m_mapTable;
+    std::map<int, PersonalItemJewelPrice>	m_mapJewelTable;
 
     static CPersonalItemPriceTable* ms_pSeller;
     static CPersonalItemPriceTable* ms_pBuyer;
@@ -235,10 +245,12 @@ public:
         {
             m_mapTable.erase(mi);
         }
+        m_mapJewelTable.erase(index);
     }
     void RemoveAllItemPrice()
     {
         m_mapTable.clear();
+        m_mapJewelTable.clear();
     }
 
     bool GetItemPrice(int index, int& price)
@@ -247,6 +259,22 @@ public:
         if (mi != m_mapTable.end())
         {
             price = (*mi).second;
+            return true;
+        }
+        return false;
+    }
+
+    void AddItemJewelPrice(int index, PersonalItemJewelPrice jewelPrice)
+    {
+        m_mapJewelTable[index] = jewelPrice;
+    }
+
+    bool GetItemJewelPrice(int index, PersonalItemJewelPrice& jewelPrice)
+    {
+        auto mi = m_mapJewelTable.find(index);
+        if (mi != m_mapJewelTable.end())
+        {
+            jewelPrice = (*mi).second;
             return true;
         }
         return false;
@@ -335,6 +363,24 @@ inline bool GetPersonalItemPrice(int index, int& price, int type)
         return false;
 
     return pPersonalItemTable->GetItemPrice(index, price);
+}
+
+inline void AddPersonalItemJewelPrice(int index, PersonalItemJewelPrice jewelPrice, int type)
+{
+    CPersonalItemPriceTable* pPersonalItemTable = CPersonalItemPriceTable::GetObjPtr(type);
+    if (pPersonalItemTable)
+    {
+        pPersonalItemTable->AddItemJewelPrice(index, jewelPrice);
+    }
+}
+
+inline bool GetPersonalItemJewelPrice(int index, PersonalItemJewelPrice& jewelPrice, int type)
+{
+    CPersonalItemPriceTable* pPersonalItemTable = CPersonalItemPriceTable::GetObjPtr(type);
+    if (!pPersonalItemTable)
+        return false;
+
+    return pPersonalItemTable->GetItemJewelPrice(index, jewelPrice);
 }
 
 inline bool CheckPriceIntegrity(const wchar_t* szZen, int size)

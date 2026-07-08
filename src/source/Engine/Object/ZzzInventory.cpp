@@ -2277,7 +2277,21 @@ void RenderItemInfo(int sx, int sy, ITEM* ip, bool Sell, int Inventype, bool bIt
             int indexInv = g_pMyShopInventory->GetInventoryCtrl()->GetIndexByItem(ip);
             wchar_t Text[100];
 
-            if (GetPersonalItemPrice(indexInv, price, g_IsPurchaseShop))
+            PersonalItemJewelPrice jewelPrice{};
+            if (GetPersonalItemJewelPrice(indexInv, jewelPrice, g_IsPurchaseShop))
+            {
+                const int jewelGroup = (jewelPrice.Type >> 12) & 0x0F;
+                const int jewelNumber = jewelPrice.Type & 0x0FFF;
+                wchar_t jewelName[64]{};
+                GetItemName(jewelGroup * MAX_ITEM_INDEX + jewelNumber, 0, jewelName);
+                mu_swprintf(Text, L"%d x %s", jewelPrice.Amount, jewelName);
+                mu_swprintf(TextList[TextNum], I18N::Game::SellingPriceS, Text);
+                TextListColor[TextNum] = TEXT_COLOR_YELLOW;
+                TextBold[TextNum] = true;
+                TextNum++;
+                mu_swprintf(TextList[TextNum], L"\n"); TextNum++; SkipNum++;
+            }
+            else if (GetPersonalItemPrice(indexInv, price, g_IsPurchaseShop))
             {
                 ConvertGold(price, Text);
                 mu_swprintf(TextList[TextNum], I18N::Game::SellingPriceS, Text);
@@ -11054,6 +11068,14 @@ bool IsExistUndecidedPrice()
         {
             bResult = false;
             int iIndex = inventoryCtrl->GetIndexByItem(pItem);
+
+            // An item priced in a jewel counts as priced even though it has no Zen price.
+            PersonalItemJewelPrice jewelPrice{};
+            if (GetPersonalItemJewelPrice(iIndex, jewelPrice, g_IsPurchaseShop) && jewelPrice.Amount > 0)
+            {
+                continue;
+            }
+
             if (GetPersonalItemPrice(iIndex, iPrice, g_IsPurchaseShop) == false)
             {
                 return true;

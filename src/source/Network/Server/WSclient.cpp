@@ -9124,6 +9124,20 @@ void ReceiveDestroyPersonalShop(const BYTE* ReceiveBuffer)
     }
 }
 
+//. Records a personal-shop item's price into the client price table: the Zen price always, and,
+//. when the seller priced the store in a jewel, the jewel currency (PriceItemType) and count too.
+static void RecordPersonalShopItemPrice(const GETPSHOPITEM_DATAINFO* pShopItem, int shopType)
+{
+    if (pShopItem->PriceItemType != 0)
+    {
+        PersonalItemJewelPrice jewelPrice{ pShopItem->PriceItemType, pShopItem->RequiredItemAmount };
+        AddPersonalItemJewelPrice(pShopItem->ItemSlot, jewelPrice, shopType);
+        return;
+    }
+
+    AddPersonalItemPrice(pShopItem->ItemSlot, pShopItem->MoneyPrice, shopType);
+}
+
 void ReceivePersonalShopItemList(std::span<const BYTE> ReceiveBuffer)
 {
     auto Header = safe_cast<GETPSHOPITEMLIST_HEADERINFO>(ReceiveBuffer);
@@ -9173,11 +9187,11 @@ void ReceivePersonalShopItemList(std::span<const BYTE> ReceiveBuffer)
             int length = CalcItemLength(itemData);
             itemData = itemData.subspan(0, length);
 
-            // todo: use item prices as well when the UI is ready
-            if (pShopItem->MoneyPrice > 0)
+            // An item is valid if it has a Zen price or a jewel price (PriceItemType != 0).
+            if (pShopItem->MoneyPrice > 0 || pShopItem->PriceItemType != 0)
             {
                 g_pPurchaseShopInventory->InsertItem(pShopItem->ItemSlot, itemData);
-                AddPersonalItemPrice(pShopItem->ItemSlot, pShopItem->MoneyPrice, PSHOPWNDTYPE_PURCHASE);
+                RecordPersonalShopItemPrice(pShopItem, PSHOPWNDTYPE_PURCHASE);
             }
             else
             {
@@ -9247,7 +9261,7 @@ void ReceiveRefreshItemList(std::span<const BYTE> ReceiveBuffer)
             itemData = itemData.subspan(0, length);
 
             g_pMyShopInventory->InsertItem(pShopItem->ItemSlot, itemData);
-            AddPersonalItemPrice(pShopItem->ItemSlot, pShopItem->MoneyPrice, PSHOPWNDTYPE_SALE);
+            RecordPersonalShopItemPrice(pShopItem, PSHOPWNDTYPE_SALE);
 
             Offset += length;
         }
@@ -9279,7 +9293,7 @@ void ReceiveRefreshItemList(std::span<const BYTE> ReceiveBuffer)
             itemData = itemData.subspan(0, length);
 
             g_pPurchaseShopInventory->InsertItem(pShopItem->ItemSlot, itemData);
-            AddPersonalItemPrice(pShopItem->ItemSlot, pShopItem->MoneyPrice, PSHOPWNDTYPE_PURCHASE);
+            RecordPersonalShopItemPrice(pShopItem, PSHOPWNDTYPE_PURCHASE);
 
             Offset += length;
         }
