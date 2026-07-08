@@ -1725,6 +1725,24 @@ typedef struct tagGETPSHOPITEM_DATA {
 } GETPSHOPITEM_DATAINFO, * LPGETPSHOPITEM_DATAINFO;
 #pragma pack(pop)
 
+// Item bank balances (server->client, code 0xD5). Mirrors the server's ItemBankBalances packet:
+// one entry per configured bankable item. Consumed by the jewel bank window (INTERFACE_JEWELBANK).
+#pragma pack(push, 1)
+typedef struct tagITEMBANK_BALANCE_ENTRY {
+    BYTE    ItemGroup;      // +0
+    WORD    ItemNumber;     // +1  little-endian
+    DWORD   Count;          // +3  little-endian
+    char    Alias[8];       // +7  UTF-8, not necessarily null-terminated
+} ITEMBANK_BALANCE_ENTRY, * LPITEMBANK_BALANCE_ENTRY; // 15 bytes
+
+typedef struct tagITEMBANK_BALANCES_HEADER {
+    PWMSG_HEADER    Header;     // C2: Code, SizeH, SizeL, HeadCode(=0xD5)
+    BYTE            bySubcode;  // +4  = 0x00
+    BYTE            ItemCount;  // +5
+    // ITEMBANK_BALANCE_ENTRY[ItemCount] follows at +6
+} ITEMBANK_BALANCES_HEADERINFO, * LPITEMBANK_BALANCES_HEADERINFO;
+#pragma pack(pop)
+
 typedef struct tagCLOSEPSHOP_RESULT {
     PWMSG_HEADER    Header;
     BYTE			bySubcode;

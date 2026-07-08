@@ -9314,6 +9314,48 @@ void ReceiveRefreshItemList(std::span<const BYTE> ReceiveBuffer)
     }
 }
 
+void ReceiveItemBankBalances(std::span<const BYTE> ReceiveBuffer)
+{
+    auto Header = safe_cast<ITEMBANK_BALANCES_HEADERINFO>(ReceiveBuffer);
+    if (Header == nullptr)
+    {
+        assert(false);
+        return;
+    }
+
+    std::vector<SEASON3B::CNewUIJewelBank::JewelBankEntry> entries;
+    int Offset = sizeof(ITEMBANK_BALANCES_HEADERINFO);
+    for (int i = 0; i < Header->ItemCount; i++)
+    {
+        auto pEntry = safe_cast<ITEMBANK_BALANCE_ENTRY>(ReceiveBuffer.subspan(Offset));
+        if (pEntry == nullptr)
+        {
+            assert(false);
+            return;
+        }
+
+        SEASON3B::CNewUIJewelBank::JewelBankEntry entry{};
+        entry.Group = pEntry->ItemGroup;
+        entry.Number = pEntry->ItemNumber;
+        entry.Count = pEntry->Count;
+
+        char aliasNarrow[sizeof(pEntry->Alias) + 1] = { 0, };
+        memcpy(aliasNarrow, pEntry->Alias, sizeof(pEntry->Alias));
+        const int aliasWideMax = (int)(sizeof(entry.Alias) / sizeof(entry.Alias[0])) - 1;
+        CMultiLanguage::ConvertFromUtf8(entry.Alias, aliasNarrow, aliasWideMax);
+
+        entries.push_back(entry);
+        Offset += sizeof(ITEMBANK_BALANCE_ENTRY);
+    }
+
+    if (g_pJewelBank)
+    {
+        g_pJewelBank->SetBalances(entries);
+    }
+
+    g_ConsoleDebug->Write(MCD_RECEIVE, L"0xD5 [ReceiveItemBankBalances] count=%d", (int)Header->ItemCount);
+}
+
 void ReceivePurchaseItem(std::span<const BYTE> ReceiveBuffer)
 {
     auto Header = safe_cast<PURCHASEITEM_RESULTINFO>(ReceiveBuffer);
@@ -13423,6 +13465,9 @@ static void ProcessPacket(const BYTE* ReceiveBuffer, int32_t Size)
         }
         break;
     }
+    case 0xD5:
+        ReceiveItemBankBalances(received_span);
+        break;
     case 0xF4:
     {
         int subcode;

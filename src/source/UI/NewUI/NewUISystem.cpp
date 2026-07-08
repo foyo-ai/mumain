@@ -60,6 +60,7 @@ CNewUISystem::CNewUISystem()
     m_pNewCastleWindow = nullptr;
     m_pNewGuardWindow = nullptr;
     m_pNewGatemanWindow = nullptr;
+    m_pNewJewelBank = nullptr;
     m_pNewGateSwitchWindow = nullptr;
     m_pNewStorageInventory = nullptr;
     m_pNewStorageInventoryExt = nullptr;
@@ -237,6 +238,10 @@ bool CNewUISystem::LoadMainSceneInterface()
 
     m_pNewGatemanWindow = new CNewUIGatemanWindow;
     if (m_pNewGatemanWindow->Create(m_pNewUIMng, PanelColumnX(1), 0) == false)
+        return false;
+
+    m_pNewJewelBank = new CNewUIJewelBank;
+    if (m_pNewJewelBank->Create(m_pNewUIMng, PanelColumnX(1), 0) == false)
         return false;
 
     m_pNewGateSwitchWindow = new CNewUIGateSwitchWindow;
@@ -556,6 +561,7 @@ void CNewUISystem::UnloadMainSceneInterface()
     SAFE_DELETE(m_pNewCastleWindow);
     SAFE_DELETE(m_pNewGuardWindow);
     SAFE_DELETE(m_pNewGatemanWindow);
+    SAFE_DELETE(m_pNewJewelBank);
     SAFE_DELETE(m_pNewGateSwitchWindow);
     SAFE_DELETE(m_pNewNPCShop);
     SAFE_DELETE(m_pNewPetInfoWindow);
@@ -2121,6 +2127,11 @@ CNewUIGuardWindow* CNewUISystem::GetUI_NewGuardWindow() const
 CNewUIGatemanWindow* CNewUISystem::GetUI_NewGatemanWindow() const
 {
     return m_pNewGatemanWindow;
+}
+
+CNewUIJewelBank* CNewUISystem::GetUI_NewJewelBank() const
+{
+    return m_pNewJewelBank;
 }
 
 CNewUIGateSwitchWindow* CNewUISystem::GetUI_NewGateSwitchWindow() const

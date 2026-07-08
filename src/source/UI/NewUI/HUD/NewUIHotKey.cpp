@@ -339,6 +339,17 @@ bool SEASON3B::CNewUIHotKey::UpdateKeyEvent()
         PlayBuffer(SOUND_CLICK01);
         return false;
     }
+    else if (SEASON3B::IsPress('J'))
+    {
+        g_pNewUISystem->Toggle(SEASON3B::INTERFACE_JEWELBANK);
+        if (g_pNewUISystem->IsVisible(SEASON3B::INTERFACE_JEWELBANK))
+        {
+            // Request fresh balances for the window (quiet, machine-readable command).
+            SocketClient->ToGameServer()->SendPublicChatMessage(Hero->ID, L"/bankdata");
+        }
+        PlayBuffer(SOUND_CLICK01);
+        return false;
+    }
     else if (SEASON3B::IsPress(VK_HOME) && !g_pChatInputBox->HaveFocus())
     {
         MUHelper::g_MuHelper.Toggle();
