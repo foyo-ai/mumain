@@ -241,9 +241,7 @@ bool CNewUISystem::LoadMainSceneInterface()
         return false;
 
     m_pNewJewelBank = new CNewUIJewelBank;
-    // Right-align to the screen edge: the bank is wider than a standard panel, so PanelColumnX(1)
-    // would push it off the right of the 640-wide virtual screen.
-    if (m_pNewJewelBank->Create(m_pNewUIMng, kLayoutBaseX - CNewUIJewelBank::JEWELBANK_WIDTH, 0) == false)
+    if (m_pNewJewelBank->Create(m_pNewUIMng, PanelColumnX(1), 0) == false)
         return false;
 
     m_pNewGateSwitchWindow = new CNewUIGateSwitchWindow;

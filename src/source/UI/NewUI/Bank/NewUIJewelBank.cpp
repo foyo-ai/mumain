@@ -20,30 +20,33 @@ namespace
     constexpr int kFrameHeaderHeight = 64;
     constexpr int kFrameSideWidth = 21;
     constexpr int kFrameFooterHeight = 45;
-    constexpr int kFirstRowY = 74;
-    constexpr int kRowHeight = 30;
-    constexpr int kIconLeft = 22;
-    constexpr int kIconScale = 20;     // icon draw size
-    constexpr int kTextLeft = 50;      // name/count column (right of the icon)
+    // Two-line rows: line 1 = icon + name, line 2 = count + withdraw buttons.
+    constexpr int kFirstRowY = 76;
+    constexpr int kRowHeight = 40;
+    constexpr int kIconLeft = 16;
+    constexpr int kIconScale = 18;     // icon draw size (line 1)
+    constexpr int kNameLeft = 38;      // name column (line 1, right of the icon)
+    constexpr int kCountLeft = 16;     // count (line 2, left)
+    constexpr int kLine2Y = 20;        // line-2 vertical offset within the row
     constexpr int kMaxItemTypeMultiplier = MAX_ITEM_INDEX; // group * 512 + number
 
     // Window labels are kept English/ASCII (the in-game text renderer cannot show diacritics).
     const wchar_t* const kJewelBankTitle = L"Jewel Bank";
     const wchar_t* const kJewelBankEmpty = L"No bankable items configured";
-    const wchar_t* const kJewelBankHint  = L"Ctrl + Right-click a bag jewel to deposit";
+    const wchar_t* const kJewelBankHint  = L"Ctrl+Right-click a jewel to deposit";
 
     // Per-row withdraw buttons. "All" (kBankAllAmount) and every value is clamped to the row count.
     constexpr int kBankAllAmount = 9999;
     const int kAmountValues[CNewUIJewelBank::AMOUNT_BUTTON_COUNT] = { 1, 10, 30, kBankAllAmount };
     const wchar_t* const kAmountLabels[CNewUIJewelBank::AMOUNT_BUTTON_COUNT] = { L"-1", L"-10", L"-30", L"All" };
 
-    constexpr int kBtnW = 34;
-    constexpr int kBtnH = 20;
-    constexpr int kBtnGap = 4;
-    constexpr int kBtnBlockRight = CNewUIJewelBank::JEWELBANK_WIDTH - 22;
+    constexpr int kBtnW = 26;
+    constexpr int kBtnH = 16;
+    constexpr int kBtnGap = 3;
+    constexpr int kBtnBlockRight = CNewUIJewelBank::JEWELBANK_WIDTH - 14;
     constexpr int kBtnBlockLeft = kBtnBlockRight - (CNewUIJewelBank::AMOUNT_BUTTON_COUNT * kBtnW + (CNewUIJewelBank::AMOUNT_BUTTON_COUNT - 1) * kBtnGap);
-    constexpr int kNameWidth = kBtnBlockLeft - kTextLeft - 6;
-    constexpr int kHintY = CNewUIJewelBank::JEWELBANK_HEIGHT - 40;
+    constexpr int kNameWidth = CNewUIJewelBank::JEWELBANK_WIDTH - kNameLeft - 12;
+    constexpr int kHintY = CNewUIJewelBank::JEWELBANK_HEIGHT - 38;
 
     int BtnX(int j) { return kBtnBlockLeft + j * (kBtnW + kBtnGap); }
 }
@@ -142,11 +145,11 @@ bool CNewUIJewelBank::HandleRowButtons()
 
     for (size_t i = 0; i < m_Entries.size(); ++i)
     {
-        const int rowY = m_Pos.y + kFirstRowY + (int)i * kRowHeight;
+        const int line2Y = m_Pos.y + kFirstRowY + (int)i * kRowHeight + kLine2Y;
         for (int j = 0; j < AMOUNT_BUTTON_COUNT; ++j)
         {
             const int bx = m_Pos.x + BtnX(j);
-            if (!CheckMouseIn(bx, rowY, kBtnW, kBtnH))
+            if (!CheckMouseIn(bx, line2Y, kBtnW, kBtnH))
             {
                 continue;
             }
@@ -324,23 +327,24 @@ void CNewUIJewelBank::RenderRows()
         const JewelBankEntry& entry = m_Entries[i];
         const int itemType = entry.Group * kMaxItemTypeMultiplier + entry.Number;
         const float rowY = m_Pos.y + (float)(kFirstRowY + (int)i * kRowHeight);
+        const float line2 = rowY + (float)kLine2Y;
 
-        // Name (line 1) + count (line 2)
+        // Line 1: name (the icon is drawn in the 3D pass at kIconLeft)
         GetItemName(itemType, 0, szName);
         g_pRenderText->SetFont(g_hFont);
-        g_pRenderText->SetTextColor(230, 230, 230, 255);
-        g_pRenderText->RenderText(m_Pos.x + (float)kTextLeft, rowY, szName, (float)kNameWidth, 0, RT3_SORT_LEFT);
+        g_pRenderText->SetTextColor(235, 235, 235, 255);
+        g_pRenderText->RenderText(m_Pos.x + (float)kNameLeft, rowY, szName, (float)kNameWidth, 0, RT3_SORT_LEFT);
 
+        // Line 2: count (left) + withdraw buttons (right)
         mu_swprintf(szCount, L"x%u", entry.Count);
         g_pRenderText->SetTextColor(150, 220, 255, 255);
-        g_pRenderText->RenderText(m_Pos.x + (float)kTextLeft, rowY + 13.0f, szCount, (float)kNameWidth, 0, RT3_SORT_LEFT);
+        g_pRenderText->RenderText(m_Pos.x + (float)kCountLeft, line2, szCount, 44.0f, 0, RT3_SORT_LEFT);
 
-        // Withdraw buttons
         for (int j = 0; j < AMOUNT_BUTTON_COUNT; ++j)
         {
             const bool dim = (entry.Count == 0);
             g_pRenderText->SetTextColor(dim ? 110 : 255, dim ? 110 : 210, dim ? 110 : 120, 255);
-            g_pRenderText->RenderText((float)(m_Pos.x + BtnX(j)), rowY + 4.0f, kAmountLabels[j], (float)kBtnW, 0, RT3_SORT_CENTER);
+            g_pRenderText->RenderText((float)(m_Pos.x + BtnX(j)), line2, kAmountLabels[j], (float)kBtnW, 0, RT3_SORT_CENTER);
         }
     }
 }

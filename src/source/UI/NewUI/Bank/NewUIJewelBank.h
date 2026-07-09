@@ -31,8 +31,8 @@ namespace SEASON3B
         enum
         {
             MAX_JEWELBANK_ENTRIES = 16,
-            JEWELBANK_WIDTH = 300,
-            JEWELBANK_HEIGHT = 320,
+            JEWELBANK_WIDTH = 190,
+            JEWELBANK_HEIGHT = 340,
             AMOUNT_BUTTON_COUNT = 4, // -1 / -10 / -30 / All
         };
 
