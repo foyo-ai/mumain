@@ -10,6 +10,7 @@
 
 #include "UI/NewUI/NewUIBase.h"
 #include "UI/NewUI/Widgets/NewUIButton.h"
+#include "UI/NewUI/Widgets/NewUIScrollBar.h"
 #include "UI/NewUI/Inventory/NewUIMyInventory.h"
 #include "UI/NewUI/Dialogs/NewUIMessageBox.h"
 #include <vector>
@@ -83,8 +84,13 @@ namespace SEASON3B
         void RenderFrame();
         void RenderRows();          // name + count text (2D)
         void RenderIcons();         // jewel icons (3D pass, mirrors CNewUIGoldBowmanLena)
-        void LayoutButtons();       // position the withdraw-button widgets relative to m_Pos
+        void LayoutButtons();       // position the withdraw-button widgets for the visible window
         bool HandleRowButtons();    // per-row -1/-10/-30/All withdraw click (via CNewUIButton)
+
+        // Scroll bookkeeping: with more configured jewels than fit on screen a scrollbar appears
+        // and the rows/icons/buttons render only the visible window [m_ScrollOffset, +visibleRows).
+        void UpdateScroll();        // shows/hides the scrollbar and refreshes m_ScrollOffset
+        int  VisibleRowOf(int entryIndex) const { return entryIndex - m_ScrollOffset; }
 
         // Sends "/bank <action> <alias> <amount>" then a quiet "/bankdata" to refresh the window.
         void SendBankCommand(const wchar_t* action, const wchar_t* alias, int amount);
@@ -93,6 +99,9 @@ namespace SEASON3B
         POINT m_Pos;
         CNewUIButton m_BtnExit;
         CNewUIButton m_BtnAmount[MAX_JEWELBANK_ENTRIES][AMOUNT_BUTTON_COUNT]; // per-row withdraw buttons
+        CNewUIScrollBar m_ScrollBar;   // shown only when entries exceed the visible rows
+        int  m_ScrollOffset;           // index of the first visible entry
+        bool m_bScrollVisible;         // whether the scrollbar is currently shown
         std::vector<JewelBankEntry> m_Entries;
     };
 }

@@ -15,21 +15,24 @@
 
 using namespace SEASON3B;
 
+extern int MouseWheel; // global wheel delta (>0 up, <0 down); reset to 0 after handling
+
 namespace
 {
     constexpr int kFrameHeaderHeight = 64;
     constexpr int kFrameSideWidth = 21;
     constexpr int kFrameFooterHeight = 45;
-    // Two-line rows: a vertically-centred icon on the left, then a name (line 1) / count (line 2)
-    // column aligned to the same x, and the withdraw buttons on line 2.
-    constexpr int kFirstRowY = 78;
-    constexpr int kRowHeight = 40;
-    constexpr int kIconLeft = 12;
-    constexpr int kIconScale = 26;     // icon draw size (vertically centred over both lines)
-    constexpr int kIconY = 4;          // icon vertical offset within the row
-    constexpr int kTextCol = 44;       // name (line 1) and count (line 2) share this x
+    constexpr int kInnerRight = CNewUIJewelBank::JEWELBANK_WIDTH - kFrameSideWidth; // 169: inner edge
+    // Row layout: the jewel name on line 1; on line 2 the icon, the count and the withdraw
+    // buttons all sit on the same horizontal axis (same vertical centre).
+    constexpr int kFirstRowY = 68;   // content starts just below the header (top-aligned)
+    constexpr int kRowHeight = 38;
+    constexpr int kVisibleRows = 5;  // rows that fit between the header and the hint line
+    constexpr int kIconLeft = 14;
+    constexpr int kIconScale = 18;     // icon draw size (on line 2, left of the count)
+    constexpr int kTextCol = 38;       // name (line 1) and count (line 2) share this x
     constexpr int kLine1Y = 2;         // name vertical offset
-    constexpr int kLine2Y = 22;        // count + buttons vertical offset
+    constexpr int kLine2Y = 20;        // icon + count + buttons vertical offset
     constexpr int kMaxItemTypeMultiplier = MAX_ITEM_INDEX; // group * 512 + number
 
     // Window labels are kept English/ASCII (the in-game text renderer cannot show diacritics).
@@ -43,12 +46,23 @@ namespace
     const wchar_t* const kAmountLabels[CNewUIJewelBank::AMOUNT_BUTTON_COUNT] = { L"-1", L"-10", L"-30", L"All" };
 
     constexpr int kBtnW = 22;
-    constexpr int kBtnH = 15;
-    constexpr int kBtnGap = 3;
-    constexpr int kBtnBlockRight = CNewUIJewelBank::JEWELBANK_WIDTH - 14;
-    constexpr int kBtnBlockLeft = kBtnBlockRight - (CNewUIJewelBank::AMOUNT_BUTTON_COUNT * kBtnW + (CNewUIJewelBank::AMOUNT_BUTTON_COUNT - 1) * kBtnGap);
-    constexpr int kNameWidth = CNewUIJewelBank::JEWELBANK_WIDTH - kTextCol - 12;
-    constexpr int kCountWidth = kBtnBlockLeft - kTextCol - 3; // count text clips before the buttons
+    constexpr int kBtnH = 16;
+    constexpr int kBtnGap = 2;
+    constexpr int kBtnBlockWidth = CNewUIJewelBank::AMOUNT_BUTTON_COUNT * kBtnW + (CNewUIJewelBank::AMOUNT_BUTTON_COUNT - 1) * kBtnGap; // 94
+
+    // Scrollbar geometry: the thumb is 15px wide and drawn 4px left of the track x, so a track x
+    // of kInnerRight-13 keeps the whole thumb inside the frame. It only appears on overflow.
+    constexpr int kScrollTrackX = kInnerRight - 13;      // 156
+    constexpr int kScrollThumbLeft = kScrollTrackX - 4;  // 152
+    constexpr int kScrollHeight = kVisibleRows * kRowHeight; // 190
+
+    // The button block always ends just left of the scrollbar gutter: the "All" button clips against
+    // the frame's inner border if pushed further right, and keeping a fixed gutter means the buttons
+    // never shift when the scrollbar appears/disappears. The gutter is empty until the list overflows.
+    constexpr int kBtnBlockRight = kScrollThumbLeft - 2;         // 150
+    constexpr int kBtnBlockLeft  = kBtnBlockRight - kBtnBlockWidth; // 56
+    constexpr int kNameWidth = kInnerRight - kTextCol;           // names are short; run to inner edge
+    constexpr int kCountWidth = kBtnBlockLeft - kTextCol - 3;    // count clips before the buttons
     // Hint sits just above the footer/exit-button row so it never draws over the exit button.
     constexpr int kHintY = CNewUIJewelBank::JEWELBANK_HEIGHT - kFrameFooterHeight - 10;
 
@@ -59,6 +73,8 @@ CNewUIJewelBank::CNewUIJewelBank()
 {
     m_pNewUIMng = NULL;
     m_Pos.x = m_Pos.y = 0;
+    m_ScrollOffset = 0;
+    m_bScrollVisible = false;
 }
 
 CNewUIJewelBank::~CNewUIJewelBank()
@@ -80,6 +96,9 @@ bool CNewUIJewelBank::Create(CNewUIManager* pNewUIMng, int x, int y)
     m_BtnExit.ChangeButtonImgState(true, IMAGE_JEWELBANK_EXIT_BTN, false);
     m_BtnExit.ChangeButtonInfo(m_Pos.x + JEWELBANK_WIDTH - 45, m_Pos.y + JEWELBANK_HEIGHT - 38, 36, 29);
     m_BtnExit.ChangeToolTipText(&I18N::Game::Close388, true);
+
+    m_ScrollBar.Create(m_Pos.x + kScrollTrackX, m_Pos.y + kFirstRowY, kScrollHeight);
+    m_ScrollBar.Show(false);
 
     // Per-row withdraw buttons as native widgets (hover/press states, click handling).
     for (int i = 0; i < MAX_JEWELBANK_ENTRIES; ++i)
@@ -103,9 +122,16 @@ void CNewUIJewelBank::LayoutButtons()
 {
     for (int i = 0; i < MAX_JEWELBANK_ENTRIES; ++i)
     {
-        const int line2Y = m_Pos.y + kFirstRowY + i * kRowHeight + kLine2Y;
+        const int vr = VisibleRowOf(i);
         for (int j = 0; j < AMOUNT_BUTTON_COUNT; ++j)
         {
+            if (vr < 0 || vr >= kVisibleRows)
+            {
+                // Park off-screen so scrolled-out rows are never rendered or clickable.
+                m_BtnAmount[i][j].ChangeButtonInfo(-1000, -1000, kBtnW, kBtnH + 5);
+                continue;
+            }
+            const int line2Y = m_Pos.y + kFirstRowY + vr * kRowHeight + kLine2Y;
             m_BtnAmount[i][j].ChangeButtonInfo(m_Pos.x + BtnX(j), line2Y - 3, kBtnW, kBtnH + 5);
         }
     }
@@ -113,6 +139,7 @@ void CNewUIJewelBank::LayoutButtons()
 
 void CNewUIJewelBank::Release()
 {
+    m_ScrollBar.Release();
     UnloadImages();
 
     if (m_pNewUIMng)
@@ -126,6 +153,7 @@ void CNewUIJewelBank::SetPos(int x, int y)
 {
     m_Pos.x = x;
     m_Pos.y = y;
+    m_ScrollBar.SetPos(m_Pos.x + kScrollTrackX, m_Pos.y + kFirstRowY);
     LayoutButtons();
 }
 
@@ -136,6 +164,7 @@ void CNewUIJewelBank::SetBalances(const std::vector<JewelBankEntry>& entries)
     {
         m_Entries.resize(MAX_JEWELBANK_ENTRIES);
     }
+    m_ScrollOffset = 0; // start at the top on a fresh balance list
 }
 
 void CNewUIJewelBank::LoadImages()
@@ -162,6 +191,11 @@ void CNewUIJewelBank::UnloadImages()
 
 bool CNewUIJewelBank::UpdateMouseEvent()
 {
+    if (m_bScrollVisible)
+    {
+        m_ScrollBar.UpdateMouseEvent();
+    }
+
     if (m_BtnExit.UpdateMouseEvent() == true)
     {
         g_pNewUISystem->Hide(SEASON3B::INTERFACE_JEWELBANK);
@@ -186,6 +220,11 @@ bool CNewUIJewelBank::HandleRowButtons()
     // act on the first one that reports a click.
     for (size_t i = 0; i < m_Entries.size(); ++i)
     {
+        const int vr = VisibleRowOf((int)i);
+        if (vr < 0 || vr >= kVisibleRows)
+        {
+            continue; // scrolled out of view
+        }
         for (int j = 0; j < AMOUNT_BUTTON_COUNT; ++j)
         {
             if (!m_BtnAmount[i][j].UpdateMouseEvent())
@@ -258,7 +297,42 @@ bool CNewUIJewelBank::UpdateKeyEvent()
 
 bool CNewUIJewelBank::Update()
 {
+    UpdateScroll();
+    LayoutButtons();
     return true;
+}
+
+// Shows/hides the scrollbar based on how many jewels are configured and refreshes the visible
+// window offset. With the real 4-jewel config nothing overflows, so the scrollbar stays hidden.
+void CNewUIJewelBank::UpdateScroll()
+{
+    const int entries = (int)m_Entries.size();
+    const int maxOffset = (entries > kVisibleRows) ? (entries - kVisibleRows) : 0;
+    m_bScrollVisible = (maxOffset > 0);
+
+    if (!m_bScrollVisible)
+    {
+        m_ScrollBar.Show(false);
+        m_ScrollOffset = 0;
+        return;
+    }
+
+    m_ScrollBar.Show(true);
+    m_ScrollBar.SetMaxPos(maxOffset);
+
+    // Mouse wheel over the window scrolls the list (wheel up shows earlier rows).
+    if (MouseWheel != 0 && CheckMouseIn(m_Pos.x, m_Pos.y, JEWELBANK_WIDTH, JEWELBANK_HEIGHT))
+    {
+        if (MouseWheel > 0) m_ScrollBar.SetCurPos(m_ScrollBar.GetCurPos() - 1);
+        else                m_ScrollBar.SetCurPos(m_ScrollBar.GetCurPos() + 1);
+        MouseWheel = 0;
+    }
+
+    m_ScrollBar.Update();
+
+    m_ScrollOffset = m_ScrollBar.GetCurPos();
+    if (m_ScrollOffset < 0)          m_ScrollOffset = 0;
+    if (m_ScrollOffset > maxOffset)  m_ScrollOffset = maxOffset;
 }
 
 bool CNewUIJewelBank::Render()
@@ -269,9 +343,14 @@ bool CNewUIJewelBank::Render()
     RenderFrame();
     RenderRows();
 
-    // Withdraw buttons (dimmed on empty rows).
+    // Withdraw buttons (dimmed on empty rows), only for the visible window.
     for (size_t i = 0; i < m_Entries.size(); ++i)
     {
+        const int vr = VisibleRowOf((int)i);
+        if (vr < 0 || vr >= kVisibleRows)
+        {
+            continue;
+        }
         const bool dim = (m_Entries[i].Count == 0);
         for (int j = 0; j < AMOUNT_BUTTON_COUNT; ++j)
         {
@@ -290,6 +369,11 @@ bool CNewUIJewelBank::Render()
     DisableAlphaBlend();
 
     RenderIcons();
+
+    if (m_bScrollVisible)
+    {
+        m_ScrollBar.Render();
+    }
 
     return true;
 }
@@ -319,11 +403,17 @@ void CNewUIJewelBank::RenderIcons()
 
     for (size_t i = 0; i < m_Entries.size(); ++i)
     {
+        const int vr = VisibleRowOf((int)i);
+        if (vr < 0 || vr >= kVisibleRows)
+        {
+            continue;
+        }
         const JewelBankEntry& entry = m_Entries[i];
         const int itemType = entry.Group * kMaxItemTypeMultiplier + entry.Number;
-        const float rowY = m_Pos.y + (float)(kFirstRowY + (int)i * kRowHeight);
+        const float rowY = m_Pos.y + (float)(kFirstRowY + vr * kRowHeight);
         glColor4f(1.f, 1.f, 1.f, 1.f);
-        RenderItem3D((float)(m_Pos.x + kIconLeft), rowY + (float)kIconY, (float)kIconScale, (float)kIconScale, itemType, 0, 0, 0, false);
+        // On line 2, vertically centred with the count text / buttons.
+        RenderItem3D((float)(m_Pos.x + kIconLeft), rowY + (float)(kLine2Y - 2), (float)kIconScale, (float)kIconScale, itemType, 0, 0, 0, false);
     }
 
     UpdateMousePositionn();
@@ -355,7 +445,7 @@ void CNewUIJewelBank::RenderFrame()
     g_pRenderText->SetBgColor(0, 0, 0, 0);
 
     mu_swprintf(szText, L"%ls", kJewelBankTitle);
-    g_pRenderText->RenderText((float)m_Pos.x, m_Pos.y + 30.0f, szText, (float)JEWELBANK_WIDTH, 0, RT3_SORT_CENTER);
+    g_pRenderText->RenderText((float)m_Pos.x, m_Pos.y + 12.0f, szText, (float)JEWELBANK_WIDTH, 0, RT3_SORT_CENTER);
 }
 
 void CNewUIJewelBank::RenderRows()
@@ -374,9 +464,14 @@ void CNewUIJewelBank::RenderRows()
     wchar_t szCount[32] = { 0, };
     for (size_t i = 0; i < m_Entries.size(); ++i)
     {
+        const int vr = VisibleRowOf((int)i);
+        if (vr < 0 || vr >= kVisibleRows)
+        {
+            continue;
+        }
         const JewelBankEntry& entry = m_Entries[i];
         const int itemType = entry.Group * kMaxItemTypeMultiplier + entry.Number;
-        const float rowY = m_Pos.y + (float)(kFirstRowY + (int)i * kRowHeight);
+        const float rowY = m_Pos.y + (float)(kFirstRowY + vr * kRowHeight);
         const float line1 = rowY + (float)kLine1Y;
         const float line2 = rowY + (float)kLine2Y;
 
