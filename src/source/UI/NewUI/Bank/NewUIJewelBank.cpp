@@ -79,9 +79,34 @@ bool CNewUIJewelBank::Create(CNewUIManager* pNewUIMng, int x, int y)
     m_BtnExit.ChangeButtonInfo(m_Pos.x + JEWELBANK_WIDTH - 45, m_Pos.y + JEWELBANK_HEIGHT - 38, 36, 29);
     m_BtnExit.ChangeToolTipText(&I18N::Game::Close388, true);
 
+    // Per-row withdraw buttons as native widgets (hover/press states, click handling).
+    for (int i = 0; i < MAX_JEWELBANK_ENTRIES; ++i)
+    {
+        for (int j = 0; j < AMOUNT_BUTTON_COUNT; ++j)
+        {
+            m_BtnAmount[i][j].ChangeButtonImgState(true, IMAGE_JEWELBANK_BTN, true);
+            m_BtnAmount[i][j].SetFont(g_hFont);
+            m_BtnAmount[i][j].ChangeText(std::wstring(kAmountLabels[j]));
+            m_BtnAmount[i][j].ChangeTextColor(RGBA(255, 235, 150, 255));
+        }
+    }
+    LayoutButtons();
+
     Show(false);
 
     return true;
+}
+
+void CNewUIJewelBank::LayoutButtons()
+{
+    for (int i = 0; i < MAX_JEWELBANK_ENTRIES; ++i)
+    {
+        const int line2Y = m_Pos.y + kFirstRowY + i * kRowHeight + kLine2Y;
+        for (int j = 0; j < AMOUNT_BUTTON_COUNT; ++j)
+        {
+            m_BtnAmount[i][j].ChangeButtonInfo(m_Pos.x + BtnX(j), line2Y - 3, kBtnW, kBtnH + 5);
+        }
+    }
 }
 
 void CNewUIJewelBank::Release()
@@ -97,6 +122,7 @@ void CNewUIJewelBank::SetPos(int x, int y)
 {
     m_Pos.x = x;
     m_Pos.y = y;
+    LayoutButtons();
 }
 
 void CNewUIJewelBank::SetBalances(const std::vector<JewelBankEntry>& entries)
@@ -140,18 +166,13 @@ bool CNewUIJewelBank::UpdateMouseEvent()
 
 bool CNewUIJewelBank::HandleRowButtons()
 {
-    if (!SEASON3B::IsPress(VK_LBUTTON))
-    {
-        return false;
-    }
-
+    // Call UpdateMouseEvent on every active button each frame so hover/press states update;
+    // act on the first one that reports a click.
     for (size_t i = 0; i < m_Entries.size(); ++i)
     {
-        const int line2Y = m_Pos.y + kFirstRowY + (int)i * kRowHeight + kLine2Y;
         for (int j = 0; j < AMOUNT_BUTTON_COUNT; ++j)
         {
-            const int bx = m_Pos.x + BtnX(j);
-            if (!CheckMouseIn(bx, line2Y, kBtnW, kBtnH))
+            if (!m_BtnAmount[i][j].UpdateMouseEvent())
             {
                 continue;
             }
@@ -231,6 +252,17 @@ bool CNewUIJewelBank::Render()
 
     RenderFrame();
     RenderRows();
+
+    // Withdraw buttons (dimmed on empty rows).
+    for (size_t i = 0; i < m_Entries.size(); ++i)
+    {
+        const bool dim = (m_Entries[i].Count == 0);
+        for (int j = 0; j < AMOUNT_BUTTON_COUNT; ++j)
+        {
+            m_BtnAmount[i][j].ChangeAlpha(dim ? 0.5f : 1.0f);
+            m_BtnAmount[i][j].Render();
+        }
+    }
 
     g_pRenderText->SetFont(g_hFont);
     g_pRenderText->SetTextColor(200, 130, 60, 255);
@@ -331,7 +363,6 @@ void CNewUIJewelBank::RenderRows()
         const float rowY = m_Pos.y + (float)(kFirstRowY + (int)i * kRowHeight);
         const float line1 = rowY + (float)kLine1Y;
         const float line2 = rowY + (float)kLine2Y;
-        const bool dim = (entry.Count == 0);
 
         // Name (line 1) and count (line 2) share kTextCol so they line up under each other;
         // the icon is drawn (vertically centred) in the 3D pass.
@@ -343,19 +374,6 @@ void CNewUIJewelBank::RenderRows()
         mu_swprintf(szCount, L"x%u", entry.Count);
         g_pRenderText->SetTextColor(150, 220, 255, 255);
         g_pRenderText->RenderText(m_Pos.x + (float)kTextCol, line2, szCount, 40.0f, 0, RT3_SORT_LEFT);
-
-        // Withdraw buttons: the shared "empty button" texture behind each label so they read as
-        // clickable (RenderImage batches fine, unlike RenderColor which only draws once per frame).
-        for (int j = 0; j < AMOUNT_BUTTON_COUNT; ++j)
-        {
-            const float bx = (float)(m_Pos.x + BtnX(j));
-            glColor4f(1.f, 1.f, 1.f, dim ? 0.55f : 1.f);
-            RenderImage(IMAGE_JEWELBANK_BTN, bx, line2 - 3.f, (float)kBtnW, (float)kBtnH + 5.f);
-            glColor4f(1.f, 1.f, 1.f, 1.f);
-
-            g_pRenderText->SetFont(g_hFont);
-            g_pRenderText->SetTextColor(dim ? 150 : 255, dim ? 140 : 235, dim ? 100 : 150, 255);
-            g_pRenderText->RenderText(bx, line2, kAmountLabels[j], (float)kBtnW, 0, RT3_SORT_CENTER);
-        }
+        // The withdraw buttons are CNewUIButton widgets, rendered/handled in Render()/HandleRowButtons().
     }
 }

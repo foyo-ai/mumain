@@ -80,9 +80,10 @@ namespace SEASON3B
     private:
         void LoadImages();
         void RenderFrame();
-        void RenderRows();          // name + count + per-row withdraw buttons (2D)
+        void RenderRows();          // name + count text (2D)
         void RenderIcons();         // jewel icons (3D pass, mirrors CNewUIGoldBowmanLena)
-        bool HandleRowButtons();    // per-row -1/-10/-30/All withdraw click
+        void LayoutButtons();       // position the withdraw-button widgets relative to m_Pos
+        bool HandleRowButtons();    // per-row -1/-10/-30/All withdraw click (via CNewUIButton)
 
         // Sends "/bank <action> <alias> <amount>" then a quiet "/bankdata" to refresh the window.
         void SendBankCommand(const wchar_t* action, const wchar_t* alias, int amount);
@@ -90,6 +91,7 @@ namespace SEASON3B
         CNewUIManager* m_pNewUIMng;
         POINT m_Pos;
         CNewUIButton m_BtnExit;
+        CNewUIButton m_BtnAmount[MAX_JEWELBANK_ENTRIES][AMOUNT_BUTTON_COUNT]; // per-row withdraw buttons
         std::vector<JewelBankEntry> m_Entries;
     };
 }
