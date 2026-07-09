@@ -475,18 +475,26 @@ void CNewUIJewelBank::RenderRows()
         const int itemType = entry.Group * kMaxItemTypeMultiplier + entry.Number;
         const float rowY = m_Pos.y + (float)(kFirstRowY + vr * kRowHeight);
         const float line1 = rowY + (float)kLine1Y;
-        const float line2 = rowY + (float)kLine2Y;
 
-        // Name (line 1) and count (line 2) share kTextCol so they line up under each other;
+        // Name (line 1) sits above; the icon, count and buttons share line 2's vertical centre.
         // the icon is drawn (vertically centred) in the 3D pass.
         GetItemName(itemType, 0, szName);
         g_pRenderText->SetFont(g_hFont);
         g_pRenderText->SetTextColor(235, 235, 235, 255);
         g_pRenderText->RenderText(m_Pos.x + (float)kTextCol, line1, szName, (float)kNameWidth, 0, RT3_SORT_LEFT);
 
+        // Vertically centre the count on the SAME axis as the withdraw buttons (which centre their
+        // own text). RenderText is top-anchored, so measure the glyph height and offset by half —
+        // otherwise the count rides ~6px high above the icon/buttons.
         mu_swprintf(szCount, L"x%u", entry.Count);
+        g_pRenderText->SetFont(g_hFont);
+        SIZE cfs = { 0, 0 };
+        GetTextExtentPoint32(g_pRenderText->GetFontDC(), szCount, (int)wcslen(szCount), &cfs);
+        const float countH = (float)cfs.cy / ((float)WindowHeight / (float)REFERENCE_HEIGHT);
+        const float btnCenterY = rowY + (float)(kLine2Y - 3) + (float)(kBtnH + 5) * 0.5f;
+        const float countY = btnCenterY - countH * 0.5f;
         g_pRenderText->SetTextColor(150, 220, 255, 255);
-        g_pRenderText->RenderText(m_Pos.x + (float)kTextCol, line2, szCount, (float)kCountWidth, 0, RT3_SORT_LEFT);
-        // The withdraw buttons are CNewUIButton widgets, rendered/handled in Render()/HandleRowButtons().
+        g_pRenderText->RenderText(m_Pos.x + (float)kTextCol, countY, szCount, (float)kCountWidth, 0, RT3_SORT_LEFT);
+        // The withdraw buttons are CNewUIMessageBoxButton widgets, rendered/handled in Render()/HandleRowButtons().
     }
 }
