@@ -14,7 +14,6 @@
 #include "UI/NewUI/Inventory/NewUIMyInventory.h"
 #include "UI/NewUI/Dialogs/NewUIMessageBox.h"
 #include "UI/NewUI/Dialogs/NewUICommonMessageBox.h" // CNewUIMessageBoxButton (full-width bevel buttons)
-#include "UI/NewUI/Quests/NewUIMyQuestInfoWindow.h" // IMAGE_MYQUEST_LINE (section divider texture)
 #include <vector>
 
 namespace SEASON3B
@@ -48,9 +47,9 @@ namespace SEASON3B
             IMAGE_JEWELBANK_RIGHT = CNewUIMyInventory::IMAGE_INVENTORY_BACK_RIGHT,
             IMAGE_JEWELBANK_BOTTOM = CNewUIMyInventory::IMAGE_INVENTORY_BACK_BOTTOM,
             IMAGE_JEWELBANK_EXIT_BTN = CNewUIMyInventory::IMAGE_INVENTORY_EXIT_BTN,
-            // Horizontal separator drawn between jewel sections (same texture the quest/trade
-            // windows use). Owned/loaded by the quest window, like CNewUITrade aliases it.
-            IMAGE_JEWELBANK_LINE = CNewUIMyQuestInfoWindow::IMAGE_MYQUEST_LINE,
+            // Thin, plain horizontal separator between jewel sections (the subtle 2px line the
+            // message boxes use), loaded by the message-box manager.
+            IMAGE_JEWELBANK_LINE = CNewUIMessageBoxMng::IMAGE_MSGBOX_SEPARATE_LINE,
         };
 
         CNewUIJewelBank();

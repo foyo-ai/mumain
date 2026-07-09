@@ -451,12 +451,14 @@ void CNewUIJewelBank::RenderFrame()
     g_pRenderText->RenderText((float)m_Pos.x, m_Pos.y + 12.0f, szText, (float)JEWELBANK_WIDTH, 0, RT3_SORT_CENTER);
 }
 
-// Thin separator between jewel sections (same texture the quest/trade windows use), drawn in the
-// gap between one section's buttons and the next section's name.
+// Thin, plain separator between jewel sections, drawn in the gap between one section's buttons
+// and the next section's name.
 void CNewUIJewelBank::RenderDividers()
 {
     glColor4f(1.f, 1.f, 1.f, 1.f);
     const int count = (int)m_Entries.size();
+    const float lineX = (float)(m_Pos.x + kFrameSideWidth);
+    const float lineW = (float)(JEWELBANK_WIDTH - 2 * kFrameSideWidth);
     for (int i = 0; i + 1 < count; ++i)
     {
         const int vr = VisibleRowOf(i);
@@ -464,7 +466,7 @@ void CNewUIJewelBank::RenderDividers()
         if (vr < 0 || vr >= kVisibleRows) continue;
         if (vrNext < 0 || vrNext >= kVisibleRows) continue; // only between two on-screen sections
         const float rowY = m_Pos.y + (float)(kFirstRowY + vr * kRowHeight);
-        RenderImage(IMAGE_JEWELBANK_LINE, (float)(m_Pos.x + 1), rowY + 33.f, (float)(JEWELBANK_WIDTH - 2), 21.f);
+        RenderImage(IMAGE_JEWELBANK_LINE, lineX, rowY + 43.f, lineW, 2.f);
     }
 }
 
