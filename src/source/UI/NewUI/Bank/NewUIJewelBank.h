@@ -13,6 +13,7 @@
 #include "UI/NewUI/Widgets/NewUIScrollBar.h"
 #include "UI/NewUI/Inventory/NewUIMyInventory.h"
 #include "UI/NewUI/Dialogs/NewUIMessageBox.h"
+#include "UI/NewUI/Dialogs/NewUICommonMessageBox.h" // CNewUIMessageBoxButton (full-width bevel buttons)
 #include <vector>
 
 namespace SEASON3B
@@ -46,7 +47,6 @@ namespace SEASON3B
             IMAGE_JEWELBANK_RIGHT = CNewUIMyInventory::IMAGE_INVENTORY_BACK_RIGHT,
             IMAGE_JEWELBANK_BOTTOM = CNewUIMyInventory::IMAGE_INVENTORY_BACK_BOTTOM,
             IMAGE_JEWELBANK_EXIT_BTN = CNewUIMyInventory::IMAGE_INVENTORY_EXIT_BTN,
-            IMAGE_JEWELBANK_BTN = CNewUIMessageBoxMng::IMAGE_MSGBOX_BTN_EMPTY_VERY_SMALL, // withdraw-button bg
         };
 
         CNewUIJewelBank();
@@ -98,7 +98,11 @@ namespace SEASON3B
         CNewUIManager* m_pNewUIMng;
         POINT m_Pos;
         CNewUIButton m_BtnExit;
-        CNewUIButton m_BtnAmount[MAX_JEWELBANK_ENTRIES][AMOUNT_BUTTON_COUNT]; // per-row withdraw buttons
+        // Per-row withdraw buttons. CNewUIMessageBoxButton (the standard dialog button) draws the
+        // FULL button texture width scaled to fit, so both left AND right borders render at any size;
+        // CNewUIButton only samples texture[0..renderWidth], which dropped the right border on the
+        // narrow buttons (the last "All" button in each row looked border-less).
+        CNewUIMessageBoxButton m_BtnAmount[MAX_JEWELBANK_ENTRIES][AMOUNT_BUTTON_COUNT];
         CNewUIScrollBar m_ScrollBar;   // shown only when entries exceed the visible rows
         int  m_ScrollOffset;           // index of the first visible entry
         bool m_bScrollVisible;         // whether the scrollbar is currently shown

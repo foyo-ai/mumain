@@ -100,15 +100,17 @@ bool CNewUIJewelBank::Create(CNewUIManager* pNewUIMng, int x, int y)
     m_ScrollBar.Create(m_Pos.x + kScrollTrackX, m_Pos.y + kFirstRowY, kScrollHeight);
     m_ScrollBar.Show(false);
 
-    // Per-row withdraw buttons as native widgets (hover/press states, click handling).
+    // Per-row withdraw buttons use the standard dialog button (CNewUIMessageBoxButton): it renders
+    // the full button texture width, so both borders show at this narrow size. Position is refreshed
+    // every frame in LayoutButtons(); here we just set the texture, size and label.
     for (int i = 0; i < MAX_JEWELBANK_ENTRIES; ++i)
     {
         for (int j = 0; j < AMOUNT_BUTTON_COUNT; ++j)
         {
-            m_BtnAmount[i][j].ChangeButtonImgState(true, IMAGE_JEWELBANK_BTN, true);
-            m_BtnAmount[i][j].SetFont(g_hFont);
-            m_BtnAmount[i][j].ChangeText(std::wstring(kAmountLabels[j]));
-            m_BtnAmount[i][j].ChangeTextColor(RGBA(255, 235, 150, 255));
+            m_BtnAmount[i][j].SetInfo(CNewUIMessageBoxMng::IMAGE_MSGBOX_BTN_EMPTY_SMALL,
+                (float)(m_Pos.x + BtnX(j)), (float)m_Pos.y, (float)kBtnW, (float)(kBtnH + 5),
+                CNewUIMessageBoxButton::MSGBOX_BTN_SIZE_EMPTY_SMALL, true);
+            m_BtnAmount[i][j].SetText(kAmountLabels[j]);
         }
     }
     LayoutButtons();
@@ -128,11 +130,11 @@ void CNewUIJewelBank::LayoutButtons()
             if (vr < 0 || vr >= kVisibleRows)
             {
                 // Park off-screen so scrolled-out rows are never rendered or clickable.
-                m_BtnAmount[i][j].ChangeButtonInfo(-1000, -1000, kBtnW, kBtnH + 5);
+                m_BtnAmount[i][j].SetPos(-1000.f, -1000.f);
                 continue;
             }
             const int line2Y = m_Pos.y + kFirstRowY + vr * kRowHeight + kLine2Y;
-            m_BtnAmount[i][j].ChangeButtonInfo(m_Pos.x + BtnX(j), line2Y - 3, kBtnW, kBtnH + 5);
+            m_BtnAmount[i][j].SetPos((float)(m_Pos.x + BtnX(j)), (float)(line2Y - 3));
         }
     }
 }
@@ -175,12 +177,11 @@ void CNewUIJewelBank::LoadImages()
     LoadBitmap(L"Interface\\newui_item_back02-R.tga", IMAGE_JEWELBANK_RIGHT, GL_LINEAR);
     LoadBitmap(L"Interface\\newui_item_back03.tga", IMAGE_JEWELBANK_BOTTOM, GL_LINEAR);
     LoadBitmap(L"Interface\\newui_exit_00.tga", IMAGE_JEWELBANK_EXIT_BTN, GL_LINEAR);
-    LoadBitmap(L"Interface\\newui_btn_empty_very_small.tga", IMAGE_JEWELBANK_BTN, GL_LINEAR);
+    // The withdraw-button texture (newui_btn_empty_small) is owned/loaded by the message-box manager.
 }
 
 void CNewUIJewelBank::UnloadImages()
 {
-    DeleteBitmap(IMAGE_JEWELBANK_BTN);
     DeleteBitmap(IMAGE_JEWELBANK_EXIT_BTN);
     DeleteBitmap(IMAGE_JEWELBANK_BOTTOM);
     DeleteBitmap(IMAGE_JEWELBANK_RIGHT);
@@ -227,7 +228,7 @@ bool CNewUIJewelBank::HandleRowButtons()
         }
         for (int j = 0; j < AMOUNT_BUTTON_COUNT; ++j)
         {
-            if (!m_BtnAmount[i][j].UpdateMouseEvent())
+            if (!(m_BtnAmount[i][j].IsMouseIn() && SEASON3B::IsPress(VK_LBUTTON)))
             {
                 continue;
             }
@@ -354,19 +355,10 @@ bool CNewUIJewelBank::Render()
         const bool dim = (m_Entries[i].Count == 0);
         for (int j = 0; j < AMOUNT_BUTTON_COUNT; ++j)
         {
-            m_BtnAmount[i][j].ChangeAlpha(dim ? 0.5f : 1.0f);
+            m_BtnAmount[i][j].SetEnable(!dim);  // empty rows render greyed and reject clicks
+            m_BtnAmount[i][j].Update();         // hover/press visual state
             m_BtnAmount[i][j].Render();
         }
-
-        // The -1/-10/-30 buttons look framed because the next button's bright left border sits just
-        // to their right; the last ("All") button has no neighbour there, so its dark right bevel
-        // vanishes against the window. Re-draw the button texture's own bright left-edge column
-        // (its leftmost 3px) over the All button's right edge so it gets a matching bright border.
-        // RenderImage batches in a loop (RenderColor would only draw once per frame here).
-        const float barX = (float)(m_Pos.x + BtnX(AMOUNT_BUTTON_COUNT - 1) + kBtnW - 3);
-        const float barY = (float)(m_Pos.y + kFirstRowY + vr * kRowHeight + kLine2Y - 3);
-        const float barH = (float)(kBtnH + 5);
-        RenderImage(IMAGE_JEWELBANK_BTN, barX, barY, 3.f, barH, 0.f, 0.f, RGBA(255, 255, 255, dim ? 128 : 255));
     }
 
     g_pRenderText->SetFont(g_hFont);
