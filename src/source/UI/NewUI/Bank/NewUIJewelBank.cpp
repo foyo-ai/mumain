@@ -42,13 +42,15 @@ namespace
     const int kAmountValues[CNewUIJewelBank::AMOUNT_BUTTON_COUNT] = { 1, 10, 30, kBankAllAmount };
     const wchar_t* const kAmountLabels[CNewUIJewelBank::AMOUNT_BUTTON_COUNT] = { L"-1", L"-10", L"-30", L"All" };
 
-    constexpr int kBtnW = 24;
+    constexpr int kBtnW = 22;
     constexpr int kBtnH = 15;
     constexpr int kBtnGap = 3;
     constexpr int kBtnBlockRight = CNewUIJewelBank::JEWELBANK_WIDTH - 14;
     constexpr int kBtnBlockLeft = kBtnBlockRight - (CNewUIJewelBank::AMOUNT_BUTTON_COUNT * kBtnW + (CNewUIJewelBank::AMOUNT_BUTTON_COUNT - 1) * kBtnGap);
     constexpr int kNameWidth = CNewUIJewelBank::JEWELBANK_WIDTH - kTextCol - 12;
-    constexpr int kHintY = CNewUIJewelBank::JEWELBANK_HEIGHT - 38;
+    constexpr int kCountWidth = kBtnBlockLeft - kTextCol - 3; // count text clips before the buttons
+    // Hint sits just above the footer/exit-button row so it never draws over the exit button.
+    constexpr int kHintY = CNewUIJewelBank::JEWELBANK_HEIGHT - kFrameFooterHeight - 10;
 
     int BtnX(int j) { return kBtnBlockLeft + j * (kBtnW + kBtnGap); }
 }
@@ -111,6 +113,8 @@ void CNewUIJewelBank::LayoutButtons()
 
 void CNewUIJewelBank::Release()
 {
+    UnloadImages();
+
     if (m_pNewUIMng)
     {
         m_pNewUIMng->RemoveUIObj(this);
@@ -142,6 +146,18 @@ void CNewUIJewelBank::LoadImages()
     LoadBitmap(L"Interface\\newui_item_back02-R.tga", IMAGE_JEWELBANK_RIGHT, GL_LINEAR);
     LoadBitmap(L"Interface\\newui_item_back03.tga", IMAGE_JEWELBANK_BOTTOM, GL_LINEAR);
     LoadBitmap(L"Interface\\newui_exit_00.tga", IMAGE_JEWELBANK_EXIT_BTN, GL_LINEAR);
+    LoadBitmap(L"Interface\\newui_btn_empty_very_small.tga", IMAGE_JEWELBANK_BTN, GL_LINEAR);
+}
+
+void CNewUIJewelBank::UnloadImages()
+{
+    DeleteBitmap(IMAGE_JEWELBANK_BTN);
+    DeleteBitmap(IMAGE_JEWELBANK_EXIT_BTN);
+    DeleteBitmap(IMAGE_JEWELBANK_BOTTOM);
+    DeleteBitmap(IMAGE_JEWELBANK_RIGHT);
+    DeleteBitmap(IMAGE_JEWELBANK_LEFT);
+    DeleteBitmap(IMAGE_JEWELBANK_TOP);
+    DeleteBitmap(IMAGE_JEWELBANK_BACK);
 }
 
 bool CNewUIJewelBank::UpdateMouseEvent()
@@ -373,7 +389,7 @@ void CNewUIJewelBank::RenderRows()
 
         mu_swprintf(szCount, L"x%u", entry.Count);
         g_pRenderText->SetTextColor(150, 220, 255, 255);
-        g_pRenderText->RenderText(m_Pos.x + (float)kTextCol, line2, szCount, 40.0f, 0, RT3_SORT_LEFT);
+        g_pRenderText->RenderText(m_Pos.x + (float)kTextCol, line2, szCount, (float)kCountWidth, 0, RT3_SORT_LEFT);
         // The withdraw buttons are CNewUIButton widgets, rendered/handled in Render()/HandleRowButtons().
     }
 }

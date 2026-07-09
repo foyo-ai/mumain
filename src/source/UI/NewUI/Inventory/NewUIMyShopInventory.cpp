@@ -36,11 +36,22 @@ namespace
     // warning text below are shifted down by kGridShift to make room).
     constexpr int kGridShift = 34;
     constexpr int kCurStripY = 96;   // slot top
-    constexpr int kCurSlotW = 30;
+    constexpr int kCurSlotWMax = 30;
     constexpr int kCurSlotH = 26;
     constexpr int kCurSlotGap = 3;
     constexpr int kCurStripLeft = 16;
-    int CurSlotX(int k) { return kCurStripLeft + k * (kCurSlotW + kCurSlotGap); }
+    constexpr int kCurStripAvail = 190 - 2 * kCurStripLeft; // INVENTORY_WIDTH(190) minus side margins
+
+    // Slot width shrinks so every configured currency fits inside the frame (no overflow past ~3 jewels).
+    int CurSlotW(int count)
+    {
+        if (count < 1) count = 1;
+        int w = (kCurStripAvail - (count - 1) * kCurSlotGap) / count;
+        if (w > kCurSlotWMax) w = kCurSlotWMax;
+        if (w < 12) w = 12;
+        return w;
+    }
+    int CurSlotX(int k, int slotW) { return kCurStripLeft + k * (slotW + kCurSlotGap); }
 };
 
 using namespace SEASON3B;
@@ -628,18 +639,20 @@ void SEASON3B::CNewUIMyShopInventory::RenderCurrencyStrip()
         RGBA(150, 140, 90, 255), 0x00000000, RT3_SORT_LEFT);
 
     const int slots = CurrencySlotCount();
+    const int slotW = CurSlotW(slots);
     for (int k = 0; k < slots; ++k)
     {
-        const int ix = m_Pos.x + CurSlotX(k);
+        const int ix = m_Pos.x + CurSlotX(k, slotW);
         const int iy = m_Pos.y + kCurStripY;
         const bool sel = IsSlotSelected(k);
 
-        // Selected slot: a green underline bar (EndRenderColor restores texturing so following
-        // text/icons still draw).
-        if (sel && enabled)
+        // Selected slot: a green underline bar (kept while disabled but greyed, so the current
+        // currency stays visible while the store is open). EndRenderColor restores texturing.
+        if (sel)
         {
-            glColor4f(0.35f, 0.9f, 0.35f, 1.f);
-            RenderColor((float)ix, (float)(iy + kCurSlotH - 2), (float)kCurSlotW, 3.f, 0.f, 0);
+            if (enabled) glColor4f(0.35f, 0.9f, 0.35f, 1.f);
+            else         glColor4f(0.35f, 0.5f, 0.35f, 1.f);
+            RenderColor((float)ix, (float)(iy + kCurSlotH - 2), (float)slotW, 3.f, 0.f, 0);
             EndRenderColor();
         }
 
@@ -649,7 +662,7 @@ void SEASON3B::CNewUIMyShopInventory::RenderCurrencyStrip()
             DWORD color = !enabled ? RGBA(120, 120, 120, 255)
                         : sel      ? RGBA(120, 255, 120, 255)
                                    : RGBA(255, 220, 130, 255);
-            RenderText(L"Zen", ix, iy + 8, kCurSlotW, 0, color, 0x00000000, RT3_SORT_CENTER);
+            RenderText(L"Zen", ix, iy + 8, slotW, 0, color, 0x00000000, RT3_SORT_CENTER);
         }
     }
 }
@@ -675,7 +688,10 @@ void SEASON3B::CNewUIMyShopInventory::RenderCurrencyIcons()
     EnableDepthTest();
     EnableDepthMask();
 
+    const float alpha = m_EnablePersonalShop ? 0.5f : 1.f; // dim while the store is open (not clickable)
     const int slots = CurrencySlotCount();
+    const int slotW = CurSlotW(slots);
+    const float iconSize = (float)(slotW - 6 < 20 ? slotW - 6 : 20);
     for (int k = 1; k < slots; ++k) // slot 0 is Zen (text); 1..N are jewels
     {
         const CNewUIJewelBank::JewelBankEntry* e = g_pJewelBank->GetEntry(k - 1);
@@ -684,11 +700,12 @@ void SEASON3B::CNewUIMyShopInventory::RenderCurrencyIcons()
             continue;
         }
         const int itemType = e->Group * MAX_ITEM_INDEX + e->Number;
-        const float ix = (float)(m_Pos.x + CurSlotX(k) + 5);
+        const float ix = (float)(m_Pos.x + CurSlotX(k, slotW)) + (slotW - iconSize) * 0.5f;
         const float iy = (float)(m_Pos.y + kCurStripY);
-        glColor4f(1.f, 1.f, 1.f, 1.f);
-        RenderItem3D(ix, iy, 20.f, 20.f, itemType, 0, 0, 0, false);
+        glColor4f(1.f, 1.f, 1.f, alpha);
+        RenderItem3D(ix, iy, iconSize, iconSize, itemType, 0, 0, 0, false);
     }
+    glColor4f(1.f, 1.f, 1.f, 1.f);
 
     UpdateMousePositionn();
     glMatrixMode(GL_MODELVIEW);
@@ -707,11 +724,12 @@ bool SEASON3B::CNewUIMyShopInventory::HandleCurrencyStrip()
     }
 
     const int slots = CurrencySlotCount();
+    const int slotW = CurSlotW(slots);
     for (int k = 0; k < slots; ++k)
     {
-        const int ix = m_Pos.x + CurSlotX(k);
+        const int ix = m_Pos.x + CurSlotX(k, slotW);
         const int iy = m_Pos.y + kCurStripY;
-        if (!CheckMouseIn(ix, iy, kCurSlotW, kCurSlotH))
+        if (!CheckMouseIn(ix, iy, slotW, kCurSlotH))
         {
             continue;
         }
@@ -719,7 +737,7 @@ bool SEASON3B::CNewUIMyShopInventory::HandleCurrencyStrip()
         wchar_t cmd[64] = { 0, };
         if (k == 0)
         {
-            mu_swprintf(cmd, L"/shopcurrency zen");
+            wcscpy(cmd, L"/shopcurrency zen");
         }
         else if (g_pJewelBank)
         {

@@ -79,6 +79,7 @@ namespace SEASON3B
 
     private:
         void LoadImages();
+        void UnloadImages();
         void RenderFrame();
         void RenderRows();          // name + count text (2D)
         void RenderIcons();         // jewel icons (3D pass, mirrors CNewUIGoldBowmanLena)
