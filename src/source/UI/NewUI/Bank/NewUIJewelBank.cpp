@@ -26,8 +26,8 @@ namespace
     // Row layout: the jewel name on line 1; on line 2 the icon, the count and the withdraw
     // buttons all sit on the same horizontal axis (same vertical centre).
     constexpr int kFirstRowY = 68;   // content starts just below the header (top-aligned)
-    constexpr int kRowHeight = 38;
-    constexpr int kVisibleRows = 5;  // rows that fit between the header and the hint line
+    constexpr int kRowHeight = 46;   // taller rows give each jewel section breathing room + a divider
+    constexpr int kVisibleRows = 4;  // rows that fit between the header and the hint line
     constexpr int kIconLeft = 14;
     constexpr int kIconScale = 18;     // icon draw size (on line 2, left of the count)
     constexpr int kTextCol = 38;       // name (line 1) and count (line 2) share this x
@@ -342,6 +342,7 @@ bool CNewUIJewelBank::Render()
     glColor4f(1.f, 1.f, 1.f, 1.f);
 
     RenderFrame();
+    RenderDividers();
     RenderRows();
 
     // Withdraw buttons (dimmed on empty rows), only for the visible window.
@@ -448,6 +449,23 @@ void CNewUIJewelBank::RenderFrame()
 
     mu_swprintf(szText, L"%ls", kJewelBankTitle);
     g_pRenderText->RenderText((float)m_Pos.x, m_Pos.y + 12.0f, szText, (float)JEWELBANK_WIDTH, 0, RT3_SORT_CENTER);
+}
+
+// Thin separator between jewel sections (same texture the quest/trade windows use), drawn in the
+// gap between one section's buttons and the next section's name.
+void CNewUIJewelBank::RenderDividers()
+{
+    glColor4f(1.f, 1.f, 1.f, 1.f);
+    const int count = (int)m_Entries.size();
+    for (int i = 0; i + 1 < count; ++i)
+    {
+        const int vr = VisibleRowOf(i);
+        const int vrNext = VisibleRowOf(i + 1);
+        if (vr < 0 || vr >= kVisibleRows) continue;
+        if (vrNext < 0 || vrNext >= kVisibleRows) continue; // only between two on-screen sections
+        const float rowY = m_Pos.y + (float)(kFirstRowY + vr * kRowHeight);
+        RenderImage(IMAGE_JEWELBANK_LINE, (float)(m_Pos.x + 1), rowY + 33.f, (float)(JEWELBANK_WIDTH - 2), 21.f);
+    }
 }
 
 void CNewUIJewelBank::RenderRows()
