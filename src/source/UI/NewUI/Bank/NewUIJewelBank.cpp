@@ -360,12 +360,13 @@ bool CNewUIJewelBank::Render()
 
         // The -1/-10/-30 buttons look framed because the next button's bright left border sits just
         // to their right; the last ("All") button has no neighbour there, so its dark right bevel
-        // vanishes against the window. Draw a thin metallic sliver to give it a matching right border.
-        const float barX = (float)(m_Pos.x + BtnX(AMOUNT_BUTTON_COUNT - 1) + kBtnW - 1);
+        // vanishes against the window. Re-draw the button texture's own bright left-edge column
+        // (its leftmost 3px) over the All button's right edge so it gets a matching bright border.
+        // RenderImage batches in a loop (RenderColor would only draw once per frame here).
+        const float barX = (float)(m_Pos.x + BtnX(AMOUNT_BUTTON_COUNT - 1) + kBtnW - 3);
         const float barY = (float)(m_Pos.y + kFirstRowY + vr * kRowHeight + kLine2Y - 3);
-        glColor4f(1.f, 1.f, 1.f, dim ? 0.5f : 1.0f);
-        RenderImage(IMAGE_JEWELBANK_LINE, barX, barY, 2.f, (float)(kBtnH + 5));
-        glColor4f(1.f, 1.f, 1.f, 1.f);
+        const float barH = (float)(kBtnH + 5);
+        RenderImage(IMAGE_JEWELBANK_BTN, barX, barY, 3.f, barH, 0.f, 0.f, RGBA(255, 255, 255, dim ? 128 : 255));
     }
 
     g_pRenderText->SetFont(g_hFont);
