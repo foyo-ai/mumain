@@ -110,7 +110,8 @@ namespace SEASON3B
 
     private:
         // Shop currency selector strip (slot 0 = Zen, slots 1..N = configured jewels).
-        void RenderCurrencyStrip();
+        void RenderCurrencyStrip();      // 2D: label, Zen text, selected underline
+        void RenderCurrencyIcons();      // 3D pass: jewel icons
         bool HandleCurrencyStrip();      // returns true if a slot was clicked
         void RequestCurrentCurrency();   // sends the quiet /shopcurdata pull
         bool IsSlotSelected(int k) const;

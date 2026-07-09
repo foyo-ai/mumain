@@ -10,6 +10,7 @@
 #include "GameLogic/Items/PersonalShopTitleImp.h"
 #include "Engine/Object/ZzzInventory.h"
 #include "Network/Server/WSclient.h"
+#include "Camera/CameraProjection.h"
 #include "I18N/All.h"
 
 const int iMAX_SHOPTITLE_MULTI = 26;
@@ -633,29 +634,69 @@ void SEASON3B::CNewUIMyShopInventory::RenderCurrencyStrip()
         const int iy = m_Pos.y + kCurStripY;
         const bool sel = IsSlotSelected(k);
 
-        // Selection is shown by a bright-green label (a filled box would need RenderColor, which
-        // disables texturing and would blank out the label after it).
-        DWORD color;
-        if (!enabled)     color = RGBA(120, 120, 120, 255);
-        else if (sel)     color = RGBA(120, 255, 120, 255);   // selected currency
-        else if (k == 0)  color = RGBA(255, 220, 130, 255);   // Zen
-        else              color = RGBA(210, 200, 170, 255);   // jewel
+        // Selected slot: a green underline bar (EndRenderColor restores texturing so following
+        // text/icons still draw).
+        if (sel && enabled)
+        {
+            glColor4f(0.35f, 0.9f, 0.35f, 1.f);
+            RenderColor((float)ix, (float)(iy + kCurSlotH - 2), (float)kCurSlotW, 3.f, 0.f, 0);
+            EndRenderColor();
+        }
 
-        const DWORD bg = sel ? RGBA(25, 70, 25, 200) : 0x00000000;
-
+        // Slot 0 is Zen (text). Jewel slots (1..N) get their icon in the 3D pass (RenderCurrencyIcons).
         if (k == 0)
         {
-            RenderText(L"Zen", ix, iy + 8, kCurSlotW, 0, color, bg, RT3_SORT_CENTER);
-        }
-        else if (g_pJewelBank)
-        {
-            const CNewUIJewelBank::JewelBankEntry* e = g_pJewelBank->GetEntry(k - 1);
-            if (e)
-            {
-                RenderText(e->Alias, ix, iy + 8, kCurSlotW, 0, color, bg, RT3_SORT_CENTER);
-            }
+            DWORD color = !enabled ? RGBA(120, 120, 120, 255)
+                        : sel      ? RGBA(120, 255, 120, 255)
+                                   : RGBA(255, 220, 130, 255);
+            RenderText(L"Zen", ix, iy + 8, kCurSlotW, 0, color, 0x00000000, RT3_SORT_CENTER);
         }
     }
+}
+
+void SEASON3B::CNewUIMyShopInventory::RenderCurrencyIcons()
+{
+    if (!g_pJewelBank || g_pJewelBank->GetEntryCount() <= 0)
+    {
+        return;
+    }
+
+    EndBitmap();
+    glMatrixMode(GL_PROJECTION);
+    SaveCameraPerspective();
+    glPushMatrix();
+    glLoadIdentity();
+    glViewport2(0, 0, WindowWidth, WindowHeight);
+    gluPerspective2(1.f, (float)(WindowWidth) / (float)(WindowHeight), RENDER_ITEMVIEW_NEAR, RENDER_ITEMVIEW_FAR);
+    glMatrixMode(GL_MODELVIEW);
+    glPushMatrix();
+    glLoadIdentity();
+    CameraProjection::GetOpenGLMatrix(g_Camera.Matrix);
+    EnableDepthTest();
+    EnableDepthMask();
+
+    const int slots = CurrencySlotCount();
+    for (int k = 1; k < slots; ++k) // slot 0 is Zen (text); 1..N are jewels
+    {
+        const CNewUIJewelBank::JewelBankEntry* e = g_pJewelBank->GetEntry(k - 1);
+        if (!e)
+        {
+            continue;
+        }
+        const int itemType = e->Group * MAX_ITEM_INDEX + e->Number;
+        const float ix = (float)(m_Pos.x + CurSlotX(k) + 5);
+        const float iy = (float)(m_Pos.y + kCurStripY);
+        glColor4f(1.f, 1.f, 1.f, 1.f);
+        RenderItem3D(ix, iy, 20.f, 20.f, itemType, 0, 0, 0, false);
+    }
+
+    UpdateMousePositionn();
+    glMatrixMode(GL_MODELVIEW);
+    glPopMatrix();
+    glMatrixMode(GL_PROJECTION);
+    glPopMatrix();
+    RestoreCameraPerspective();
+    BeginBitmap();
 }
 
 bool SEASON3B::CNewUIMyShopInventory::HandleCurrencyStrip()
@@ -731,6 +772,8 @@ bool SEASON3B::CNewUIMyShopInventory::Render()
     }
 
     DisableAlphaBlend();
+
+    RenderCurrencyIcons();
 
     return true;
 }

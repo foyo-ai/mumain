@@ -79,7 +79,8 @@ namespace SEASON3B
     private:
         void LoadImages();
         void RenderFrame();
-        void RenderRows();          // icon + name + count + per-row withdraw buttons
+        void RenderRows();          // name + count + per-row withdraw buttons (2D)
+        void RenderIcons();         // jewel icons (3D pass, mirrors CNewUIGoldBowmanLena)
         bool HandleRowButtons();    // per-row -1/-10/-30/All withdraw click
 
         // Sends "/bank <action> <alias> <amount>" then a quiet "/bankdata" to refresh the window.

@@ -10,6 +10,7 @@
 #include "Engine/Object/ZzzCharacter.h"
 #include "Network/Server/WSclient.h"
 #include "Audio/DSPlaySound.h"
+#include "Camera/CameraProjection.h"
 #include "I18N/All.h"
 
 using namespace SEASON3B;
@@ -21,7 +22,9 @@ namespace
     constexpr int kFrameFooterHeight = 45;
     constexpr int kFirstRowY = 74;
     constexpr int kRowHeight = 30;
-    constexpr int kTextLeft = 22;      // name/count column
+    constexpr int kIconLeft = 22;
+    constexpr int kIconScale = 20;     // icon draw size
+    constexpr int kTextLeft = 50;      // name/count column (right of the icon)
     constexpr int kMaxItemTypeMultiplier = MAX_ITEM_INDEX; // group * 512 + number
 
     // Window labels are kept English/ASCII (the in-game text renderer cannot show diacritics).
@@ -233,7 +236,51 @@ bool CNewUIJewelBank::Render()
 
     DisableAlphaBlend();
 
+    RenderIcons();
+
     return true;
+}
+
+// Renders the jewel icons in a 3D perspective pass (RenderItem3D needs the perspective/depth
+// state set up; mirrors CNewUIGoldBowmanLena::Render3D()).
+void CNewUIJewelBank::RenderIcons()
+{
+    if (m_Entries.empty())
+    {
+        return;
+    }
+
+    EndBitmap();
+    glMatrixMode(GL_PROJECTION);
+    SaveCameraPerspective();
+    glPushMatrix();
+    glLoadIdentity();
+    glViewport2(0, 0, WindowWidth, WindowHeight);
+    gluPerspective2(1.f, (float)(WindowWidth) / (float)(WindowHeight), RENDER_ITEMVIEW_NEAR, RENDER_ITEMVIEW_FAR);
+    glMatrixMode(GL_MODELVIEW);
+    glPushMatrix();
+    glLoadIdentity();
+    CameraProjection::GetOpenGLMatrix(g_Camera.Matrix);
+    EnableDepthTest();
+    EnableDepthMask();
+
+    for (size_t i = 0; i < m_Entries.size(); ++i)
+    {
+        const JewelBankEntry& entry = m_Entries[i];
+        const int itemType = entry.Group * kMaxItemTypeMultiplier + entry.Number;
+        const float rowY = m_Pos.y + (float)(kFirstRowY + (int)i * kRowHeight);
+        glColor4f(1.f, 1.f, 1.f, 1.f);
+        RenderItem3D((float)(m_Pos.x + kIconLeft), rowY, (float)kIconScale, (float)kIconScale, itemType, 0, 0, 0, false);
+    }
+
+    UpdateMousePositionn();
+
+    glMatrixMode(GL_MODELVIEW);
+    glPopMatrix();
+    glMatrixMode(GL_PROJECTION);
+    glPopMatrix();
+    RestoreCameraPerspective();
+    BeginBitmap();
 }
 
 float CNewUIJewelBank::GetLayerDepth()
