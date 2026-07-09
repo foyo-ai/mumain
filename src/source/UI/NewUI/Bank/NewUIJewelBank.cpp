@@ -357,6 +357,15 @@ bool CNewUIJewelBank::Render()
             m_BtnAmount[i][j].ChangeAlpha(dim ? 0.5f : 1.0f);
             m_BtnAmount[i][j].Render();
         }
+
+        // The -1/-10/-30 buttons look framed because the next button's bright left border sits just
+        // to their right; the last ("All") button has no neighbour there, so its dark right bevel
+        // vanishes against the window. Draw a thin metallic sliver to give it a matching right border.
+        const float barX = (float)(m_Pos.x + BtnX(AMOUNT_BUTTON_COUNT - 1) + kBtnW - 1);
+        const float barY = (float)(m_Pos.y + kFirstRowY + vr * kRowHeight + kLine2Y - 3);
+        glColor4f(1.f, 1.f, 1.f, dim ? 0.5f : 1.0f);
+        RenderImage(IMAGE_JEWELBANK_LINE, barX, barY, 2.f, (float)(kBtnH + 5));
+        glColor4f(1.f, 1.f, 1.f, 1.f);
     }
 
     g_pRenderText->SetFont(g_hFont);
