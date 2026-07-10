@@ -715,7 +715,7 @@ namespace MUHelper
                 {
                     m_iCurrentTarget = GetFarthestAttackingTarget();
                 }
-                
+
                 if (m_iCurrentTarget == -1)
                 {
                     m_iCurrentTarget = GetNearestTarget();
@@ -828,9 +828,43 @@ namespace MUHelper
     // True while the hero is mid swing; gating helper actions on it makes the
     // bot's cadence follow AttackSpeed instead of the fixed helper timer, the
     // same way the manual click path gates in MoveHero (ZzzInterface.cpp).
+    //
+    // IsAttackAction() tests the contiguous range [PLAYER_ATTACK_FIST .. PLAYER_RIDE_SKILL],
+    // which also spans the mounted idle / run / walk animations (Fenrir stand/run/walk,
+    // DarkHorse idle, ride-horse stand/run, DarkLord stand/walk, the two-hand-sword-two
+    // stances, fly-ride). A character simply SITTING on a Fenrir is in PLAYER_FENRIR_STAND,
+    // so the raw predicate reports "mid swing" forever and the helper never attacks while
+    // mounted (manual attacks are unaffected because they don't gate on this). Exclude those
+    // non-attack animations so only real attack/skill swings gate the cadence.
     static bool IsHeroSwingInProgress()
     {
-        return Engine::Object::IsAttackAction(Hero->Object.CurrentAction);
+        const int action = Hero->Object.CurrentAction;
+
+        switch (action)
+        {
+        case PLAYER_FLY_RIDE:
+        case PLAYER_FLY_RIDE_WEAPON:
+        case PLAYER_DARKLORD_STAND:
+        case PLAYER_DARKLORD_WALK:
+        case PLAYER_STOP_RIDE_HORSE:
+        case PLAYER_RUN_RIDE_HORSE:
+        case PLAYER_IDLE1_DARKHORSE:
+        case PLAYER_IDLE2_DARKHORSE:
+        case PLAYER_STOP_TWO_HAND_SWORD_TWO:
+        case PLAYER_WALK_TWO_HAND_SWORD_TWO:
+        case PLAYER_RUN_TWO_HAND_SWORD_TWO:
+            return false;
+        default:
+            break;
+        }
+
+        // Fenrir run / stand / walk animations (movement + idle, not attacks).
+        if (action >= PLAYER_FENRIR_RUN && action <= PLAYER_FENRIR_WALK_ONE_LEFT)
+        {
+            return false;
+        }
+
+        return Engine::Object::IsAttackAction(action);
     }
 
     int CMuHelper::SimulateAttack(ActionSkillType iSkill)
