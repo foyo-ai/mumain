@@ -560,19 +560,9 @@ bool CNewUIMyInventory::UpdateMouseEvent()
 
     if (CheckMouseIn(m_Pos.x, m_Pos.y, INVENTORY_WIDTH, INVENTORY_HEIGHT))
     {
-        // Ctrl+right-click a bankable jewel in the bag to deposit all of that jewel into the jewel bank.
-        if (IsRepeat(VK_CONTROL) && IsPress(VK_RBUTTON))
-        {
-            ITEM* pPointedItem = m_pNewInventoryCtrl->FindItemPointedSquareIndex();
-            if (pPointedItem != nullptr && pPointedItem->Type >= 0 && g_pJewelBank != nullptr
-                && g_pJewelBank->TryDepositAllOfItem(pPointedItem->Type / MAX_ITEM_INDEX, pPointedItem->Type % MAX_ITEM_INDEX))
-            {
-                ResetMouseRButton();
-                PlayBuffer(SOUND_CLICK01);
-                return false;
-            }
-        }
-
+        // NOTE: Ctrl+right-click jewel-bank deposit is handled in
+        // CNewUIInventoryActionController::HandleRightClick (runs earlier, before the
+        // right button is consumed). Don't duplicate it here.
         if (IsPress(VK_RBUTTON))
         {
             ResetMouseRButton();

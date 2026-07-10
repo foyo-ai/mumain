@@ -107,6 +107,11 @@ namespace SEASON3B
         void Toggle(DWORD dwKey);	//. Show <-> Hide
         void HideAll();
 
+        // Slide the jewel-bank window left so it never overlaps the inventory / character
+        // panels that share the right-side column. Called after any Show/Hide that can
+        // change which of those panels is visible.
+        void ArrangeJewelBank();
+
         void Enable(DWORD dwKey);
         void Disable(DWORD dwKey);
 

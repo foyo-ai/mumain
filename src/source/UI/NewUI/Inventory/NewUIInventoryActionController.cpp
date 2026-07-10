@@ -139,6 +139,31 @@ bool CNewUIInventoryActionController::HandleRepairClick(CNewUIInventoryCtrl* tar
 
 bool CNewUIInventoryActionController::HandleRightClick(CNewUIInventoryCtrl* targetControl) const
 {
+    // Ctrl+right-click a bankable jewel in the bag deposits all of it into the jewel bank.
+    // This must run before the button is reset below and before the normal use/equip/drop
+    // handling, otherwise the right-click would be consumed and the deposit would never fire.
+    //
+    // We swallow the click for ANY Ctrl+right-click on an item, even one that is not bankable
+    // or when the bank balances have not been received yet (m_Entries still empty right after
+    // world-enter, or when the bank has no configured items). Ctrl+right-click is otherwise
+    // unused in the inventory, so swallowing it is safe and, crucially, stops a bankable jewel
+    // from falling through to TryDropItem() and being dropped on the ground.
+    if (IsRepeat(VK_CONTROL))
+    {
+        ITEM* pPointedItem = targetControl->FindItemAtPt(MouseX, MouseY);
+        if (pPointedItem != nullptr)
+        {
+            m_pContext->ResetMouseRButton();
+            if (g_pJewelBank != nullptr && pPointedItem->Type >= 0
+                && g_pJewelBank->TryDepositAllOfItem(pPointedItem->Type / MAX_ITEM_INDEX, pPointedItem->Type % MAX_ITEM_INDEX))
+            {
+                PlayBuffer(SOUND_CLICK01);
+            }
+
+            return true;
+        }
+    }
+
     m_pContext->ResetMouseRButton();
 
     if (g_pNewUISystem->IsVisible(INTERFACE_STORAGE))

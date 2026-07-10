@@ -197,6 +197,17 @@ bool CNewUIJewelBank::UpdateMouseEvent()
         m_ScrollBar.UpdateMouseEvent();
     }
 
+    // Top-right close "X": it is part of the shared frame-header texture (newui_item_back01),
+    // so there is no separate button object, just a hitbox, exactly like the inventory window
+    // uses for its 190px-wide frame. Closes the bank the same as the bottom exit button.
+    const POINT ptTopClose = { m_Pos.x + 169, m_Pos.y + 7 };
+    if (SEASON3B::IsPress(VK_LBUTTON) && CheckMouseIn(ptTopClose.x, ptTopClose.y, 13, 12))
+    {
+        g_pNewUISystem->Hide(SEASON3B::INTERFACE_JEWELBANK);
+        PlayBuffer(SOUND_CLICK01);
+        return false;
+    }
+
     if (m_BtnExit.UpdateMouseEvent() == true)
     {
         g_pNewUISystem->Hide(SEASON3B::INTERFACE_JEWELBANK);

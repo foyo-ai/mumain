@@ -1133,6 +1133,7 @@ void CNewUISystem::Show(DWORD dwKey)
     m_pNewUIMng->ShowInterface(dwKey);
 
     UpdateHeroPositionInfoVisibilityForLayoutChange(dwKey);
+    ArrangeJewelBank();
 
     int iScreenWidth = GetScreenWidth();
     m_pNewItemEnduranceInfo->SetPos(iScreenWidth);
@@ -1561,11 +1562,35 @@ void CNewUISystem::Hide(DWORD dwKey)
     m_pNewUIMng->ShowInterface(dwKey, false);
 
     UpdateHeroPositionInfoVisibilityForLayoutChange(dwKey);
+    ArrangeJewelBank();
 
     int iScreenWidth = GetScreenWidth();
     m_pNewItemEnduranceInfo->SetPos(iScreenWidth);
     m_pNewBuffWindow->SetPos(iScreenWidth);
     m_pNewPartyListWindow->SetPos(iScreenWidth);
+}
+
+void CNewUISystem::ArrangeJewelBank()
+{
+    if (!m_pNewJewelBank || !IsVisible(INTERFACE_JEWELBANK))
+    {
+        return;
+    }
+
+    // The inventory and character panels both live in the rightmost column (column 1);
+    // when both are open the inventory shifts to column 2. Park the bank in the first
+    // column those panels do not occupy so it gets pushed left instead of overlapped.
+    int column = 1;
+    if (IsVisible(INTERFACE_INVENTORY))
+    {
+        ++column;
+    }
+    if (IsVisible(INTERFACE_CHARACTER))
+    {
+        ++column;
+    }
+
+    m_pNewJewelBank->SetPos(PanelColumnX(column), 0);
 }
 
 void CNewUISystem::Toggle(DWORD dwKey)
