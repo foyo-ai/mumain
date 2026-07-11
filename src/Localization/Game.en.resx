@@ -12917,4 +12917,7 @@
   <data name="Sells in colon" xml:space="preserve">
     <value>Sells in:</value>
   </data>
+  <data name="You are short of currency" xml:space="preserve">
+    <value>You are short of %s.</value>
+  </data>
 </root>

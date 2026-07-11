@@ -16,10 +16,13 @@ namespace
 {
     // "Sells in: [icon] <currency>" header, shown under the shop title so the buyer sees the
     // store's currency without hovering each item. All offsets are relative to the window origin.
-    constexpr int kCurHeaderY   = 74;  // baseline of the row (just under the title, above the grid)
+    // The item grid and the warning block are pushed down by kGridShift so the title, this header
+    // and the grid each get some breathing room instead of being stacked tight.
+    constexpr int kGridShift    = 26;  // item grid + warning text shift down to make room for the header
+    constexpr int kCurHeaderY   = 84;  // currency row (below the name box at +49..75, above the grid)
     constexpr int kCurLabelX    = 18;  // "Sells in:" label
     constexpr int kCurIconX     = 66;  // jewel icon (skipped for Zen)
-    constexpr int kCurIconY     = 73;
+    constexpr int kCurIconY     = 83;
     constexpr int kCurIconSize  = 16;
     constexpr int kCurNameX     = 86;  // currency name, after the icon
     constexpr int kCurNameZenX  = 66;  // currency name for Zen (no icon, sits right after the label)
@@ -66,7 +69,7 @@ bool SEASON3B::CNewUIPurchaseShopInventory::Create(CNewUIManager* pNewUIMng, int
     m_pNewUIMng->AddUIObj(SEASON3B::INTERFACE_PURCHASESHOP_INVENTORY, this);
 
     m_pNewInventoryCtrl = new CNewUIInventoryCtrl;
-    if (false == m_pNewInventoryCtrl->Create(STORAGE_TYPE::UNDEFINED, g_pNewUI3DRenderMng, g_pNewItemMng, this, m_Pos.x + 16, m_Pos.y + 90, 8, 4, MAX_MY_INVENTORY_EX_INDEX))
+    if (false == m_pNewInventoryCtrl->Create(STORAGE_TYPE::UNDEFINED, g_pNewUI3DRenderMng, g_pNewItemMng, this, m_Pos.x + 16, m_Pos.y + 90 + kGridShift, 8, 4, MAX_MY_INVENTORY_EX_INDEX))
     {
         SAFE_DELETE(m_pNewInventoryCtrl);
         return false;
@@ -262,37 +265,37 @@ void SEASON3B::CNewUIPurchaseShopInventory::RenderTextInfo()
 
     memset(&Text, 0, sizeof(wchar_t) * 100);
     mu_swprintf(Text, I18N::Game::Warning);
-    RenderText(Text, m_Pos.x + 30, m_Pos.y + 230, 0, 0, RGBA(255, 45, 47, 255), 0x00000000, RT3_SORT_LEFT, g_hFontBold);
+    RenderText(Text, m_Pos.x + 30, m_Pos.y + 230 + kGridShift, 0, 0, RGBA(255, 45, 47, 255), 0x00000000, RT3_SORT_LEFT, g_hFontBold);
 
     memset(&Text, 0, sizeof(wchar_t) * 100);
     mu_swprintf(Text, I18N::Game::SellingPriceWhenOpeningTheStore);
-    RenderText(Text, m_Pos.x + 30, m_Pos.y + 250, 0, 0, RGBA(247, 206, 77, 255), 0x00000000, RT3_SORT_LEFT);
+    RenderText(Text, m_Pos.x + 30, m_Pos.y + 250 + kGridShift, 0, 0, RGBA(247, 206, 77, 255), 0x00000000, RT3_SORT_LEFT);
 
     memset(&Text, 0, sizeof(wchar_t) * 100);
     mu_swprintf(Text, I18N::Game::PleaseVerify);
-    RenderText(Text, m_Pos.x + 30, m_Pos.y + 262, 0, 0, RGBA(247, 206, 77, 255), 0x00000000, RT3_SORT_LEFT);
+    RenderText(Text, m_Pos.x + 30, m_Pos.y + 262 + kGridShift, 0, 0, RGBA(247, 206, 77, 255), 0x00000000, RT3_SORT_LEFT);
 
     memset(&Text, 0, sizeof(wchar_t) * 100);
     mu_swprintf(Text, I18N::Game::AlreadyInThePersonalStore);
-    RenderText(Text, m_Pos.x + 30, m_Pos.y + 274, 0, 0, RGBA(247, 206, 77, 255), 0x00000000, RT3_SORT_LEFT);
+    RenderText(Text, m_Pos.x + 30, m_Pos.y + 274 + kGridShift, 0, 0, RGBA(247, 206, 77, 255), 0x00000000, RT3_SORT_LEFT);
 
     memset(&Text, 0, sizeof(wchar_t) * 100);
     mu_swprintf(Text, I18N::Game::CancelPurchasedItem);
-    RenderText(Text, m_Pos.x + 30, m_Pos.y + 286, 0, 0, RGBA(247, 206, 77, 255), 0x00000000, RT3_SORT_LEFT);
+    RenderText(Text, m_Pos.x + 30, m_Pos.y + 286 + kGridShift, 0, 0, RGBA(247, 206, 77, 255), 0x00000000, RT3_SORT_LEFT);
 
     memset(&Text, 0, sizeof(wchar_t) * 100);
     mu_swprintf(Text, I18N::Game::CanTBeReturned);
-    RenderText(Text, m_Pos.x + 30, m_Pos.y + 298, 0, 0, RGBA(247, 206, 77, 255), 0x00000000, RT3_SORT_LEFT);
+    RenderText(Text, m_Pos.x + 30, m_Pos.y + 298 + kGridShift, 0, 0, RGBA(247, 206, 77, 255), 0x00000000, RT3_SORT_LEFT);
 
     memset(&Text, 0, sizeof(wchar_t) * 100);
     mu_swprintf(Text, I18N::Game::AllItemTrading);
-    RenderText(Text, m_Pos.x + 30, m_Pos.y + 320, 0, 0, RGBA(255, 45, 47, 255), 0x00000000, RT3_SORT_LEFT, g_hFontBold);
+    RenderText(Text, m_Pos.x + 30, m_Pos.y + 320 + kGridShift, 0, 0, RGBA(255, 45, 47, 255), 0x00000000, RT3_SORT_LEFT, g_hFontBold);
 
     // A store is single-currency (shown in the "Sells in:" header above); keep the line short
     // to fit the 190px window.
     memset(&Text, 0, sizeof(wchar_t) * 100);
     mu_swprintf(Text, I18N::Game::UsesTheStoreCurrency);
-    RenderText(Text, m_Pos.x + 30, m_Pos.y + 332, 0, 0, RGBA(255, 45, 47, 255), 0x00000000, RT3_SORT_LEFT, g_hFontBold);
+    RenderText(Text, m_Pos.x + 30, m_Pos.y + 332 + kGridShift, 0, 0, RGBA(255, 45, 47, 255), 0x00000000, RT3_SORT_LEFT, g_hFontBold);
 }
 
 // "Sells in: [icon] <currency>" 2D text. The jewel icon itself is drawn in RenderCurrencyIcon()

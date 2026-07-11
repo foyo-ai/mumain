@@ -9453,7 +9453,20 @@ void ReceivePurchaseItem(std::span<const BYTE> ReceiveBuffer)
         {
         case PURCHASEITEM_RESULTINFO::LackOfMoney:
         {
-            g_pSystemLogBox->AddText(I18N::Game::YouAreShortOfZen, SEASON3B::TYPE_ERROR_MESSAGE);
+            // The store may be priced in a jewel, not Zen. Name the actual currency so the buyer
+            // isn't told "short of Zen" when they're really short of, e.g., Jewel of Soul.
+            if (g_PurchaseShopCurrency.Valid && !g_PurchaseShopCurrency.IsZen)
+            {
+                wchar_t curName[64] = { 0, };
+                GetItemName(g_PurchaseShopCurrency.Group * MAX_ITEM_INDEX + g_PurchaseShopCurrency.Number, 0, curName);
+                wchar_t msg[128] = { 0, };
+                mu_swprintf(msg, I18N::Game::YouAreShortOfCurrency, curName);
+                g_pSystemLogBox->AddText(msg, SEASON3B::TYPE_ERROR_MESSAGE);
+            }
+            else
+            {
+                g_pSystemLogBox->AddText(I18N::Game::YouAreShortOfZen, SEASON3B::TYPE_ERROR_MESSAGE);
+            }
         }
         break;
         case PURCHASEITEM_RESULTINFO::MoneyOverflowOrNotEnoughSpace:
