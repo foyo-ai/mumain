@@ -12905,4 +12905,13 @@
   <data name="Retrying in seconds" xml:space="preserve">
     <value>Retrying in %d seconds...</value>
   </data>
+  <data name="Selling price colon" xml:space="preserve">
+    <value>Selling price : %s</value>
+  </data>
+  <data name="uses the selected currency" xml:space="preserve">
+    <value>uses the selected currency.</value>
+  </data>
+  <data name="uses each item currency" xml:space="preserve">
+    <value>uses each item's currency.</value>
+  </data>
 </root>

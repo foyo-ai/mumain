@@ -97,6 +97,12 @@ namespace SEASON3B
         void DeleteItem(int iIndex);
         void DeleteAllItems();
 
+        // Writes the display name of the currency this store currently sells in
+        // (as chosen on the "Sell in" strip) into `out`. Returns false when the
+        // currency is Zen (the caller should use the plain "zen" wording),
+        // true when it is a jewel (out receives e.g. "Jewel of Soul").
+        static bool GetCurrencyDisplayName(wchar_t* out, size_t cch);
+
     private:
         void LoadImages();
         void UnloadImages();

@@ -590,8 +590,13 @@ void SEASON3B::CNewUIMyShopInventory::RenderTextInfo()
     mu_swprintf(Text, I18N::Game::AllItemTrading);
     RenderText(Text, m_Pos.x + 30, m_Pos.y + 320 + kGridShift, 0, 0, RGBA(255, 45, 47, 255), 0x00000000, RT3_SORT_LEFT, g_hFontBold);
 
+    // Currency-neutral: the store can sell in Zen or a jewel (chosen on the
+    // "Sell in" strip just above), so name neither here. The specific currency
+    // and amount are shown per item and in the sell-price confirmation dialog.
+    // Kept short to fit the 190px window (the old "...using zen." line already
+    // ran to the frame edge; a jewel name would overflow it).
     memset(&Text, 0, sizeof(wchar_t) * 100);
-    mu_swprintf(Text, I18N::Game::CanOnlyBeDoneUsingZen);
+    mu_swprintf(Text, I18N::Game::UsesTheSelectedCurrency);
     RenderText(Text, m_Pos.x + 30, m_Pos.y + 332 + kGridShift, 0, 0, RGBA(255, 45, 47, 255), 0x00000000, RT3_SORT_LEFT, g_hFontBold);
 }
 
@@ -599,6 +604,26 @@ int SEASON3B::CNewUIMyShopInventory::CurrencySlotCount() const
 {
     const int jewels = g_pJewelBank ? g_pJewelBank->GetEntryCount() : 0;
     return 1 + jewels; // slot 0 = Zen
+}
+
+bool SEASON3B::CNewUIMyShopInventory::GetCurrencyDisplayName(wchar_t* out, size_t cch)
+{
+    if (out == nullptr || cch == 0)
+    {
+        return false;
+    }
+    out[0] = L'\0';
+
+    // Zen (or no currency pushed yet): let the caller use the plain "zen" wording.
+    if (!g_ShopCurrency.Valid || g_ShopCurrency.IsZen)
+    {
+        return false;
+    }
+
+    wchar_t name[64] = { 0, };
+    GetItemName(g_ShopCurrency.Group * MAX_ITEM_INDEX + g_ShopCurrency.Number, 0, name);
+    wcsncpy_s(out, cch, name, _TRUNCATE);
+    return true;
 }
 
 bool SEASON3B::CNewUIMyShopInventory::IsSlotSelected(int k) const

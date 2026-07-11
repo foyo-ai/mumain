@@ -17,6 +17,7 @@
 #include "Engine/Object/ZzzOpenData.h"
 #include "GameLogic/Items/InventoryUtils.h"
 #include "UI/NewUI/NewUISystem.h"
+#include "UI/NewUI/Inventory/NewUIMyShopInventory.h"
 
 extern int DeleteIndex;
 extern int AppointStatus;
@@ -4684,7 +4685,18 @@ CALLBACK_RESULT SEASON3B::CPersonalShopItemValueMsgBoxLayout::ProcessOk(class CN
         if (lpMsgBox)
         {
             wchar_t strText2[MAX_TEXT_LENGTH] = { 0, };
-            mu_swprintf(strText2, I18N::Game::SellingPriceSZen, strText);
+            wchar_t currencyName[64] = { 0, };
+            if (CNewUIMyShopInventory::GetCurrencyDisplayName(currencyName, _countof(currencyName)))
+            {
+                // Store sells in a jewel: e.g. "Selling price : 8 x Jewel of Soul".
+                wchar_t priceText[128] = { 0, };
+                mu_swprintf(priceText, L"%ls x %ls", strText, currencyName);
+                mu_swprintf(strText2, I18N::Game::SellingPriceColon, priceText);
+            }
+            else
+            {
+                mu_swprintf(strText2, I18N::Game::SellingPriceSZen, strText);
+            }
             lpMsgBox->AddMsg(strText2, RGBA(255, 0, 0, 255), MSGBOX_FONT_BOLD);
             lpMsgBox->AddMsg(I18N::Game::DoYouWantToSellItemAtThisPrice);
             lpMsgBox->SetItemValue(iInputZen);

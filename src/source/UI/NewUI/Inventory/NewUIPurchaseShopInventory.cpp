@@ -272,8 +272,11 @@ void SEASON3B::CNewUIPurchaseShopInventory::RenderTextInfo()
     mu_swprintf(Text, I18N::Game::AllItemTrading);
     RenderText(Text, m_Pos.x + 30, m_Pos.y + 320, 0, 0, RGBA(255, 45, 47, 255), 0x00000000, RT3_SORT_LEFT, g_hFontBold);
 
+    // A purchase store can price each item in a different currency (Zen or a
+    // jewel), shown per item, so this side can't name a single one. Kept short
+    // to fit the 190px window.
     memset(&Text, 0, sizeof(wchar_t) * 100);
-    mu_swprintf(Text, I18N::Game::CanOnlyBeDoneUsingZen);
+    mu_swprintf(Text, I18N::Game::UsesEachItemCurrency);
     RenderText(Text, m_Pos.x + 30, m_Pos.y + 332, 0, 0, RGBA(255, 45, 47, 255), 0x00000000, RT3_SORT_LEFT, g_hFontBold);
 }
 
