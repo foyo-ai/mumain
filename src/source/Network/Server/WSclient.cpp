@@ -9179,6 +9179,11 @@ void ReceivePersonalShopItemList(std::span<const BYTE> ReceiveBuffer)
         g_pMyInventory->ChangeMyShopButtonStateOpen();
 
         RemoveAllPerosnalItemPrice(PSHOPWNDTYPE_PURCHASE);	//. clear item price table
+
+        // A personal store is single-currency, so derive the store's currency from the first
+        // priced item. The buyer window shows it as a "Sells in: <currency>" header.
+        g_PurchaseShopCurrency.Valid = false;
+
         int Offset = sizeof(GETPSHOPITEMLIST_HEADERINFO);
         for (int i = 0; i < Header->ItemCount; i++)
         {
@@ -9187,6 +9192,23 @@ void ReceivePersonalShopItemList(std::span<const BYTE> ReceiveBuffer)
             {
                 assert(false);
                 return;
+            }
+
+            if (!g_PurchaseShopCurrency.Valid && (pShopItem->MoneyPrice > 0 || pShopItem->PriceItemType != 0))
+            {
+                if (pShopItem->PriceItemType != 0)
+                {
+                    g_PurchaseShopCurrency.Group = (BYTE)((pShopItem->PriceItemType >> 12) & 0x0F);
+                    g_PurchaseShopCurrency.Number = (WORD)(pShopItem->PriceItemType & 0x0FFF);
+                    g_PurchaseShopCurrency.IsZen = false;
+                }
+                else
+                {
+                    g_PurchaseShopCurrency.Group = 0xFF;
+                    g_PurchaseShopCurrency.Number = 0xFFFF;
+                    g_PurchaseShopCurrency.IsZen = true;
+                }
+                g_PurchaseShopCurrency.Valid = true;
             }
 
             Offset+=9;
@@ -9364,6 +9386,7 @@ void ReceiveItemBankBalances(std::span<const BYTE> ReceiveBuffer)
 }
 
 SHOP_CURRENCY_INFO g_ShopCurrency = { 0, 0, true, false };
+SHOP_CURRENCY_INFO g_PurchaseShopCurrency = { 0, 0, true, false };
 
 // Personal store's current currency (server->client, code 0xD6). Group 0xFF / Number 0xFFFF = Zen.
 void ReceiveShopCurrency(std::span<const BYTE> ReceiveBuffer)

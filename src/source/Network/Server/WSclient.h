@@ -1755,6 +1755,12 @@ struct SHOP_CURRENCY_INFO
 };
 extern SHOP_CURRENCY_INFO g_ShopCurrency;
 
+// Currency of the OTHER player's store currently being viewed as a buyer (the purchase-shop
+// window). A personal store is single-currency: every item is priced in the same Zen or jewel,
+// so this is derived from the received item list. Lets the buyer window show a "Sells in: <x>"
+// header instead of forcing the player to hover each item. Valid=false until an item list arrives.
+extern SHOP_CURRENCY_INFO g_PurchaseShopCurrency;
+
 typedef struct tagCLOSEPSHOP_RESULT {
     PWMSG_HEADER    Header;
     BYTE			bySubcode;

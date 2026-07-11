@@ -80,6 +80,8 @@ namespace SEASON3B
     private:
         void RenderFrame();
         void RenderTextInfo();
+        void RenderCurrencyHeader();  // 2D: "Sells in:" label + currency name
+        void RenderCurrencyIcon();    // 3D pass: the jewel icon (skipped for Zen)
 
     private:
         CNewUIManager* m_pNewUIMng;

@@ -8,9 +8,22 @@
 #include "I18N/All.h"
 
 #include "GameLogic/Items/PersonalShopTitleImp.h"
+#include "Engine/Object/ZzzInventory.h"
+#include "Network/Server/WSclient.h"
+#include "Camera/CameraProjection.h"
 
 namespace
 {
+    // "Sells in: [icon] <currency>" header, shown under the shop title so the buyer sees the
+    // store's currency without hovering each item. All offsets are relative to the window origin.
+    constexpr int kCurHeaderY   = 74;  // baseline of the row (just under the title, above the grid)
+    constexpr int kCurLabelX    = 18;  // "Sells in:" label
+    constexpr int kCurIconX     = 66;  // jewel icon (skipped for Zen)
+    constexpr int kCurIconY     = 73;
+    constexpr int kCurIconSize  = 16;
+    constexpr int kCurNameX     = 86;  // currency name, after the icon
+    constexpr int kCurNameZenX  = 66;  // currency name for Zen (no icon, sits right after the label)
+
     void RenderText(const wchar_t* text, int x, int y, int sx, int sy, DWORD color, DWORD backcolor, int sort, HFONT hFont = g_hFont)
     {
         g_pRenderText->SetFont(hFont);
@@ -242,6 +255,9 @@ void SEASON3B::CNewUIPurchaseShopInventory::RenderTextInfo()
 {
     RenderText(I18N::Game::PersonalStore, m_Pos.x, m_Pos.y + 15, 190, 0, 0xFF49B0FF, 0x00000000, RT3_SORT_CENTER);
     RenderText(m_TitleText.c_str(), m_Pos.x, m_Pos.y + 58, 190, 0, RGBA(0, 255, 0, 255), 0x00000000, RT3_SORT_CENTER, g_hFontBold);
+
+    RenderCurrencyHeader();
+
     wchar_t Text[100];
 
     memset(&Text, 0, sizeof(wchar_t) * 100);
@@ -272,12 +288,74 @@ void SEASON3B::CNewUIPurchaseShopInventory::RenderTextInfo()
     mu_swprintf(Text, I18N::Game::AllItemTrading);
     RenderText(Text, m_Pos.x + 30, m_Pos.y + 320, 0, 0, RGBA(255, 45, 47, 255), 0x00000000, RT3_SORT_LEFT, g_hFontBold);
 
-    // A purchase store can price each item in a different currency (Zen or a
-    // jewel), shown per item, so this side can't name a single one. Kept short
+    // A store is single-currency (shown in the "Sells in:" header above); keep the line short
     // to fit the 190px window.
     memset(&Text, 0, sizeof(wchar_t) * 100);
-    mu_swprintf(Text, I18N::Game::UsesEachItemCurrency);
+    mu_swprintf(Text, I18N::Game::UsesTheStoreCurrency);
     RenderText(Text, m_Pos.x + 30, m_Pos.y + 332, 0, 0, RGBA(255, 45, 47, 255), 0x00000000, RT3_SORT_LEFT, g_hFontBold);
+}
+
+// "Sells in: [icon] <currency>" 2D text. The jewel icon itself is drawn in RenderCurrencyIcon()
+// (a 3D pass); here we lay out the "Sells in:" label and the currency name around it.
+void SEASON3B::CNewUIPurchaseShopInventory::RenderCurrencyHeader()
+{
+    if (!g_PurchaseShopCurrency.Valid)
+    {
+        return; // no item list received yet
+    }
+
+    RenderText(I18N::Game::SellsInColon, m_Pos.x + kCurLabelX, m_Pos.y + kCurHeaderY, 0, 0,
+        RGBA(150, 140, 90, 255), 0x00000000, RT3_SORT_LEFT);
+
+    if (g_PurchaseShopCurrency.IsZen)
+    {
+        RenderText(I18N::Game::Zen, m_Pos.x + kCurNameZenX, m_Pos.y + kCurHeaderY, 0, 0,
+            RGBA(255, 220, 130, 255), 0x00000000, RT3_SORT_LEFT);
+    }
+    else
+    {
+        wchar_t name[64] = { 0, };
+        GetItemName(g_PurchaseShopCurrency.Group * MAX_ITEM_INDEX + g_PurchaseShopCurrency.Number, 0, name);
+        RenderText(name, m_Pos.x + kCurNameX, m_Pos.y + kCurHeaderY, 0, 0,
+            RGBA(120, 255, 120, 255), 0x00000000, RT3_SORT_LEFT);
+    }
+}
+
+// Draws the store-currency jewel icon in a 3D perspective pass (RenderItem3D needs the depth/
+// perspective state set up; mirrors CNewUIMyShopInventory::RenderCurrencyIcons). Zen has no icon.
+void SEASON3B::CNewUIPurchaseShopInventory::RenderCurrencyIcon()
+{
+    if (!g_PurchaseShopCurrency.Valid || g_PurchaseShopCurrency.IsZen)
+    {
+        return;
+    }
+
+    EndBitmap();
+    glMatrixMode(GL_PROJECTION);
+    SaveCameraPerspective();
+    glPushMatrix();
+    glLoadIdentity();
+    glViewport2(0, 0, WindowWidth, WindowHeight);
+    gluPerspective2(1.f, (float)(WindowWidth) / (float)(WindowHeight), RENDER_ITEMVIEW_NEAR, RENDER_ITEMVIEW_FAR);
+    glMatrixMode(GL_MODELVIEW);
+    glPushMatrix();
+    glLoadIdentity();
+    CameraProjection::GetOpenGLMatrix(g_Camera.Matrix);
+    EnableDepthTest();
+    EnableDepthMask();
+
+    const int itemType = g_PurchaseShopCurrency.Group * MAX_ITEM_INDEX + g_PurchaseShopCurrency.Number;
+    glColor4f(1.f, 1.f, 1.f, 1.f);
+    RenderItem3D((float)(m_Pos.x + kCurIconX), (float)(m_Pos.y + kCurIconY),
+        (float)kCurIconSize, (float)kCurIconSize, itemType, 0, 0, 0, false);
+
+    UpdateMousePositionn();
+    glMatrixMode(GL_MODELVIEW);
+    glPopMatrix();
+    glMatrixMode(GL_PROJECTION);
+    glPopMatrix();
+    RestoreCameraPerspective();
+    BeginBitmap();
 }
 
 bool SEASON3B::CNewUIPurchaseShopInventory::Render()
@@ -298,6 +376,8 @@ bool SEASON3B::CNewUIPurchaseShopInventory::Render()
 
     DisableAlphaBlend();
 
+    RenderCurrencyIcon(); // 3D pass for the store-currency jewel icon in the "Sells in:" header
+
     return true;
 }
 
@@ -310,6 +390,7 @@ void SEASON3B::CNewUIPurchaseShopInventory::ClosingProcess()
     }
 
     m_ShopCharacterIndex = -1;
+    g_PurchaseShopCurrency.Valid = false;
 
     g_pMyInventory->ChangeMyShopButtonStateOpen();
 }

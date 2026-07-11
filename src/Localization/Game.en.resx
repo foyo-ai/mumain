@@ -12911,7 +12911,10 @@
   <data name="uses the selected currency" xml:space="preserve">
     <value>uses the selected currency.</value>
   </data>
-  <data name="uses each item currency" xml:space="preserve">
-    <value>uses each item's currency.</value>
+  <data name="uses the store currency" xml:space="preserve">
+    <value>uses the store's currency.</value>
+  </data>
+  <data name="Sells in colon" xml:space="preserve">
+    <value>Sells in:</value>
   </data>
 </root>
