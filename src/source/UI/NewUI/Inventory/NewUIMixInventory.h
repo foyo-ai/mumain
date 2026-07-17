@@ -58,6 +58,9 @@ namespace SEASON3B
         void DeleteItem(int iIndex);
         void DeleteAllItems();
 
+        // Right-click auto-move: send an item from the player inventory into the mix grid.
+        bool ProcessMyInvenItemAutoMove(CNewUIInventoryCtrl* sourceCtrl);
+
         void OpeningProcess();
         bool ClosingProcess();
 
@@ -86,6 +89,9 @@ namespace SEASON3B
         void RenderFrame();
         bool InventoryProcess();
         bool BtnProcess();
+
+        // Right-click auto-move: send an item from the mix grid back to the player inventory.
+        bool ProcessMixItemAutoMove();
 
         void RenderMixDescriptions(float fPos_x, float fPos_y);
 

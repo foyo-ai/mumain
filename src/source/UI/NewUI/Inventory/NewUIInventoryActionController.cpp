@@ -5,6 +5,7 @@
 #include "UI/NewUI/Inventory/NewUIInventoryActionController.h"
 #include "UI/NewUI/Inventory/NewUIMyInventory.h"
 #include "UI/NewUI/Inventory/NewUIInventoryCtrl.h"
+#include "UI/NewUI/Inventory/NewUIMixInventory.h"
 #include "UI/NewUI/NewUISystem.h"
 #include "UI/NewUI/Dialogs/NewUICustomMessageBox.h"
 #include "Engine/Object/ZzzInventory.h"
@@ -171,6 +172,11 @@ bool CNewUIInventoryActionController::HandleRightClick(CNewUIInventoryCtrl* targ
         return HandleStorageAutoMove(targetControl);
     }
 
+    if (g_pNewUISystem->IsVisible(INTERFACE_MIXINVENTORY))
+    {
+        return HandleMixAutoMove(targetControl);
+    }
+
     if (g_pNewUISystem->IsVisible(INTERFACE_NPCSHOP) && g_pNewUISystem->IsVisible(INTERFACE_INVENTORY))
     {
         return HandleSellToNPC(targetControl);
@@ -204,6 +210,13 @@ bool CNewUIInventoryActionController::HandleStorageAutoMove(CNewUIInventoryCtrl*
     }
 
     return false;
+}
+
+bool CNewUIInventoryActionController::HandleMixAutoMove(CNewUIInventoryCtrl* targetControl) const
+{
+    // Right-click an inventory item while the combine (Chaos Machine) window is open
+    // to send it straight into the mix grid, mirroring the warehouse auto-move.
+    return g_pMixInventory->ProcessMyInvenItemAutoMove(targetControl);
 }
 
 bool CNewUIInventoryActionController::HandleSellToNPC(CNewUIInventoryCtrl* targetControl) const

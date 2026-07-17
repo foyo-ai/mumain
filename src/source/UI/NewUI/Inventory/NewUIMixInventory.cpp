@@ -195,6 +195,7 @@ bool CNewUIMixInventory::UpdateMouseEvent()
     {
         if (SEASON3B::IsPress(VK_RBUTTON))
         {
+            ProcessMixItemAutoMove();
             MouseRButton = false;
             MouseRButtonPop = false;
             MouseRButtonPush = false;
@@ -971,6 +972,81 @@ bool CNewUIMixInventory::InventoryProcess()
         }
     }
     return false;
+}
+
+// Shared helper: pick the item out of the source grid (so the standard item-move
+// response handler finalizes/rolls back the source slot), then fire the move request
+// to the destination storage. Mirrors the drag-and-drop path exactly.
+static bool AutoMovePickAndSend(CNewUIInventoryCtrl* sourceCtrl, ITEM* pItemObj, STORAGE_TYPE dstType, int nDstIndex)
+{
+    if (!CNewUIInventoryCtrl::CreatePickedItem(sourceCtrl, pItemObj))
+        return false;
+
+    CNewUIPickedItem* pPicked = CNewUIInventoryCtrl::GetPickedItem();
+    if (pPicked == NULL)
+        return false;
+
+    sourceCtrl->RemoveItem(pItemObj);
+    pPicked->HidePickedItem();
+
+    if (SendRequestEquipmentItem(pPicked->GetSourceStorageType(), pPicked->GetSourceLinealPos(), pPicked->GetItem(), dstType, nDstIndex))
+    {
+        PlayBuffer(SOUND_GET_ITEM01);
+        return true;
+    }
+
+    // The request could not be sent (e.g. another move is already in flight):
+    // restore the item to its original slot so it is never lost.
+    CNewUIInventoryCtrl::BackupPickedItem();
+    return false;
+}
+
+bool CNewUIMixInventory::ProcessMyInvenItemAutoMove(CNewUIInventoryCtrl* sourceCtrl)
+{
+    if (GetMixState() != MIX_READY)
+        return false;
+
+    if (CNewUIInventoryCtrl::GetPickedItem() != NULL)
+        return false;
+
+    if (sourceCtrl == NULL)
+        sourceCtrl = g_pMyInventory->GetInventoryCtrl();
+
+    if (sourceCtrl == NULL || m_pNewInventoryCtrl == NULL)
+        return false;
+
+    ITEM* pItemObj = sourceCtrl->FindItemAtPt(MouseX, MouseY);
+    if (pItemObj == NULL)
+        return false;
+
+    const ITEM_ATTRIBUTE* pItemAttr = &ItemAttribute[pItemObj->Type];
+    const int nDstIndex = m_pNewInventoryCtrl->FindEmptySlot(pItemAttr->Width, pItemAttr->Height);
+    if (nDstIndex == -1)
+        return false;
+
+    return AutoMovePickAndSend(sourceCtrl, pItemObj, g_MixRecipeMgr.GetMixInventoryEquipmentIndex(), nDstIndex);
+}
+
+bool CNewUIMixInventory::ProcessMixItemAutoMove()
+{
+    if (GetMixState() != MIX_READY)
+        return false;
+
+    if (CNewUIInventoryCtrl::GetPickedItem() != NULL)
+        return false;
+
+    if (m_pNewInventoryCtrl == NULL || !m_pNewInventoryCtrl->CheckPtInRect(MouseX, MouseY))
+        return false;
+
+    ITEM* pItemObj = m_pNewInventoryCtrl->FindItemAtPt(MouseX, MouseY);
+    if (pItemObj == NULL)
+        return false;
+
+    const int nDstIndex = g_pMyInventory->FindEmptySlotIncludingExtensions(pItemObj);
+    if (nDstIndex == -1)
+        return false;
+
+    return AutoMovePickAndSend(m_pNewInventoryCtrl, pItemObj, STORAGE_TYPE::INVENTORY, nDstIndex);
 }
 
 void CNewUIMixInventory::CheckMixInventory()
