@@ -265,8 +265,37 @@ bool CNewUIJewelBank::HandleRowButtons()
     return false;
 }
 
+// Maps a packed jewel (group 12) to the single jewel it bundles, so Ctrl+right-clicking a packed
+// jewel deposits into the same bank balance as the loose jewel. Mirrors the server's JewelMixes
+// config (single <-> packed). No-op for non-packed items.
+static void RemapPackedJewelToSingle(int& group, int& number)
+{
+    if (group != 12)
+    {
+        return;
+    }
+
+    switch (number)
+    {
+    case 30:  group = 14; number = 13; break; // Packed Jewel of Bless
+    case 31:  group = 14; number = 14; break; // Packed Jewel of Soul
+    case 136: group = 14; number = 16; break; // Packed Jewel of Life
+    case 137: group = 14; number = 22; break; // Packed Jewel of Creation
+    case 138: group = 14; number = 31; break; // Packed Jewel of Guardian
+    case 139: group = 14; number = 41; break; // Packed Gemstone
+    case 140: group = 14; number = 42; break; // Packed Jewel of Harmony
+    case 141: group = 12; number = 15; break; // Packed Jewel of Chaos
+    case 142: group = 14; number = 43; break; // Packed Lower refine stone
+    case 143: group = 14; number = 44; break; // Packed Higher refine stone
+    default: break;
+    }
+}
+
 bool CNewUIJewelBank::TryDepositAllOfItem(int group, int number)
 {
+    // A packed jewel deposits into its single jewel's balance (server credits (level+1)*10 each).
+    RemapPackedJewelToSingle(group, number);
+
     for (size_t i = 0; i < m_Entries.size(); ++i)
     {
         if (m_Entries[i].Group == group && m_Entries[i].Number == number)
